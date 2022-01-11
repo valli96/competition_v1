@@ -220,6 +220,11 @@ def myhook():
 rospy.on_shutdown(myhook)
 ##################### if the process is killed ##########################################
 
+
+def get_maker_pos_2():
+    
+
+
 def main():
     # global state_of_operation
     global timer_marker
@@ -227,9 +232,9 @@ def main():
     # pub_takeoff.publish(Empty_)
     time.sleep(2.5)
     rospy.Subscriber("/bebop/odom", Odometry, main_algorithm, queue_size=1)
-    rospy.Subscriber("/visualization_marker", Marker, get_maker_pos, queue_size=1)
+    # rospy.Subscriber("/visualization_marker", Marker, get_maker_pos, queue_size=1)
 
-    rospy.Subscriber("/ar_pose_marker", Marker, get_maker_pos, queue_size=1)
+    rospy.Subscriber("/ar_pose_marker", Marker, get_maker_pos_2, queue_size=1)
 
     rospy.Subscriber("/bebop/odom", Odometry, callback, queue_size=1)
     rospy.Subscriber("/custom_command", Float32, custom_command, queue_size=1)
