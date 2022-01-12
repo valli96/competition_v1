@@ -196,8 +196,7 @@ def get_maker_pos_2(msg):
              msg.markers[0].pose.pose.orientation.y, 
              msg.markers[0].pose.pose.orientation.z, 
              msg.markers[0].pose.pose.orientation.w])
-
-        
+        # rotation offest fixed. before 90 now 0 
         if yaw > -math.pi/2:
             diff_ang = yaw - math.pi/2
         elif yaw < -math.pi/2:
