@@ -201,7 +201,7 @@ def run_script():
         sub.call(['gnome-terminal', '-x','python', '/home/valentin/catkin_ws/src/competition_v1/src/test_viso_marker.py'])
     if var_source.get() == 2:
         print("hich bin nummer 2")
-        sub.call(['gnome-terminal', '-x','python', '/home/valentin/catkin_ws/src/competition_v1/src/simulation_drone.py'])
+        sub.call(['gnome-terminal', '-x','python', '/home/valentin/catkin_ws/src/competition_v1/src/fly_simulation.py'])
 
 def marker_detection():
     # print("hallo")
