@@ -116,10 +116,9 @@ def callback(msg):
     # speed.linear.y = 0
     # speed.linear.z = pid_z(pos_done[2])
     # speed.linear.z = 0
-    speed.linear.z = 0
-    speed.linear.x = 0
+    speed.linear.x = pid_x(goal_pos.x - 1.4)/10
     speed.linear.y = 0
-
+    speed.linear.z = 0
 
     speed.angular.z =  -pid_rot(yaw_marker)/2
     pub_move.publish(speed)
@@ -128,7 +127,7 @@ def callback(msg):
 
     with open('test_data.csv', 'a') as f:
         writer = csv.writer(f)
-        writer.writerow([speed.angular.z    , yaw_drone, yaw_marker])
+        writer.writerow([goal_pos.x, speed.linear.x, speed.angular.z])
 
 
 def custom_command(msg):
@@ -218,6 +217,7 @@ def get_maker_pos_2(msg):
             yaw_marker = yaw_marker - math.pi/2
         elif yaw_marker < -math.pi/2:
             yaw_marker = yaw_marker + 3*math.pi/2
+
         ######################### rotation ################################
         
         ################ writing to csv File ##############################
@@ -232,9 +232,32 @@ def get_maker_pos_2(msg):
 
         ################ for the marker looking routine ###################
         timer_marker.cancel()
-        timer_marker = threading.Timer(0.5, look_for_marker)
+        timer_marker = threading.Timer(0.8, look_for_marker)
         timer_marker.start()    
         ################ for the marker looking routine ###################
+
+        pid_x = PID(0.1, 0.1, 0.00, setpoint=0)
+        pid_y = PID(0.1, 0.0, 0.00, setpoint=0)
+        pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
+        pid_rot = PID(0.5, 0.02, 0.00, setpoint=0)
+
+        # speed.linear.x = pid_x(pos_done[0])
+        # speed.linear.y = 0
+        # speed.linear.z = pid_z(pos_done[2])
+        # speed.linear.z = 0
+        speed.linear.x = pid_x(-(goal_pos.x - 1.4))/2
+        speed.linear.y = pid_x((goal_pos.y))
+        # speed.angular.z =  -pid_rot(yaw_marker)/2
+
+        # speed.linear.y = 0.1
+        pub_move.publish(speed)
+        ##################### adjust to target pos and pub speed ######################
+
+
+        with open('test_data.csv', 'a') as f:
+            writer = csv.writer(f)
+            writer.writerow([speed.linear.x, goal_pos.y,  speed.linear.y ])
+
     else:
         speed.linear.z = 0
         speed.linear.x = 0
@@ -265,7 +288,7 @@ def main():
     pub_takeoff.publish(Empty_)
     time.sleep(2.5)
     rospy.Subscriber("/ar_pose_marker", AlvarMarkers, get_maker_pos_2, queue_size=1)  # get marker position
-    rospy.Subscriber("/bebop/odom", Odometry, callback, queue_size=1)         # is used for debugging and controll the drone without the marker
+    # rospy.Subscriber("/bebop/odom", Odometry, callback, queue_size=1)         # is used for debugging and controll the drone without the marker
     # rospy.Subscriber("/bebop/odom", Odometry, main_algorithm, queue_size=1)     # main function (state machine)
     # rospy.Subscriber("/custom_command", Float32, custom_command, queue_size=1)  # resice and handels commands from the UI
 
