@@ -58,7 +58,7 @@ def plotter():
             # print(height_val)
 
             if var_plot.get() == 1:
-                data = genfromtxt('test_data.csv', delimiter=',')   
+                data = genfromtxt('goal_pos.csv', delimiter=',')   
                 height_val_vec = height_val*np.ones(len(data)) 
                 ax2[0].clear()
                 ax2[0].plot(data[:,0])
@@ -67,7 +67,7 @@ def plotter():
 
                 ax2[1].clear()
                 ax2[1].plot(data[:,1])
-                ax2[1].set_title("x of the maker")
+                ax2[1].set_title("y of the maker")
 
                 ax2[2].clear()
                 ax2[2].plot(data[:,2])
@@ -76,7 +76,7 @@ def plotter():
             # canvas = FigureCanvasTkAgg(plot2, master=root)  # A tk.DrawingArea.
 
             if var_plot.get() == 2:         
-                data = genfromtxt('test_data.csv', delimiter=',')   
+                data = genfromtxt('velocity_drone.csv', delimiter=',')   
                 height_val_vec = height_val*np.ones(len(data)) 
                 ax2[0].clear()
                 ax2[0].plot(data[:,0])
@@ -90,8 +90,6 @@ def plotter():
                 ax2[2].clear()
                 ax2[2].plot(data[:,2])
                 ax2[2].set_title("rotational velocity")
-
-
 
             # my_data = genfromtxt('pos_marker.csv', delimiter=',')
             print("my_data")
@@ -141,26 +139,23 @@ def clean_up():
     root.destroy()
 
 def clear_plots():
-    # os.remove("test_data.csv")
-    # ax1[0].clear()
-    # ax1[1].clear()
     try:
-        os.remove("pos_marker.csv")
+        os.remove("goal_pos.csv")
     except:
         pass
 
-    with open("pos_marker.csv", "w",  newline='') as my_empty_csv:
+    with open("goal_pos.csv", "w",  newline='') as my_empty_csv:
         my_empty_csv_w = csv.writer(my_empty_csv)
         my_empty_csv_w.writerow([0.0 , 0.0 ,0.0])
         my_empty_csv_w.writerow([0.0 , 0.0 ,0.0])
         pass  
 
     try:
-        os.remove("test_data.csv")
+        os.remove("velocity_drone.csv")
     except:
         pass
 
-    with open("test_data.csv", "w",  newline='') as my_empty_csv:
+    with open("velocity_drone.csv", "w",  newline='') as my_empty_csv:
         my_empty_csv_w = csv.writer(my_empty_csv)
         my_empty_csv_w.writerow([0.0 , 0.0 ,0.0])
         my_empty_csv_w.writerow([0.0 , 0.0 ,0.0])
@@ -185,7 +180,7 @@ def sel():
         ax2[0].set_title("velocity in x")
         ax2[1].set_title("velocity in z")
         ax2[2].set_title("rotational velocity")
-
+        canvas = FigureCanvasTkAgg(plot2, master=root)  # A tk.DrawingArea.
     canvas.draw()
     # canvas.get_tk_widget().pack(fill=tk.X)
 
@@ -244,7 +239,10 @@ def marker_detection():
 
 
 tk.Button(master=frm_start, text="roscore", command=lambda: sub.call(['gnome-terminal', '-e', 'roscore'])).pack(side=tk.LEFT)
-tk.Button(master=frm_start, text="connect drone", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch bebop_tools bebop_nodelet_iv.launch'])).pack(side=tk.LEFT)
+# tk.Button(master=frm_start, text="connect drone", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch bebop_tools bebop_nodelet_iv.launch'])).pack(side=tk.LEFT)
+tk.Button(master=frm_start, text="connect drone", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch bebop_driver bebop_node.launch'])).pack(side=tk.LEFT)
+tk.Button(master=frm_start, text="show image", command=lambda: sub.call(['gnome-terminal', '-e', 'rosrun image_view image_view image:=/bebop/image_raw'])).pack(side=tk.LEFT)
+
 # tk.Button(master=frm_start, text="run marker detection", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch ar_track_alvar my.launch'])).pack(side=tk.LEFT)
 tk.Button(master=frm_start, text="run marker detection", command=marker_detection).pack(side=tk.LEFT)
 tk.Button(master=frm_start, text="run ros bag", command=lambda: sub.call(['gnome-terminal', '-e', 'rosbag play /home/valentin/drone_base/long.bag'])).pack(side=tk.LEFT)
@@ -373,6 +371,5 @@ tk.Button(root, text="exit", command=clean_up, bg="red", fg="white").pack()
 # txt_battery = tk.Label(root, text = '0%').pack()
 # bat = tk.Button(root,text="hallo" ,command=battery_update).pack()
 ##################################  Battery indicator ###########################
-
 
 root.mainloop()
