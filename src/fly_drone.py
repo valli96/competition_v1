@@ -84,7 +84,6 @@ def callback(msg):
         yaw_drone = yaw_drone - math.pi
     elif yaw_drone < 0:
         yaw_drone = yaw_drone + math.pi
-
     ################## odom message of drone ################################
 
     ################################### calibration IMU ######################
@@ -100,31 +99,19 @@ def callback(msg):
     pos_done[1] = (msg.pose.pose.position.y - initial_odom[1]) - custom_y
     pos_done[2] = (msg.pose.pose.position.z - initial_odom[2]) - custom_height  # - 2 the number will define how heigh the drone can hover 
     # drone_rot = (msg.pose.pose.position.z - initial_odom[3]) - initial_angel  #  this is the yaw of the drone
-    
-    # print(str(msg.pose.pose.position.z) + ": odom rotion ")
-    # print(str(initial_odom[3]) + ":  initial rotaion")
-    # print(str(custom_angel) + "custom angel")
 
-    print(str(yaw_drone) + ":   drone_rot")
-    
     pid_x = PID(0.3, 0.05, 0.01, setpoint=0)
     # pid_y = PID(0.3, 0.05, 0.01, setpoint=0)
     pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
     pid_rot = PID(0.5, 0.02, 0.00, setpoint=0)
 
-    # speed.linear.x = pid_x(pos_done[0])
+    # speed.linear.x = pid_x(goal_pos.x - 1.4)/10
     # speed.linear.y = 0
-    # speed.linear.z = pid_z(pos_done[2])
     # speed.linear.z = 0
-    speed.linear.x = pid_x(goal_pos.x - 1.4)/10
-    speed.linear.y = 0
-    speed.linear.z = 0
+    # speed.angular.z =  -pid_rot(yaw_marker)/2
 
-    speed.angular.z =  -pid_rot(yaw_marker)/2
-    pub_move.publish(speed)
-    ##################### adjust to target pos and pub speed ######################
-
-
+    # pub_move.publish(speed)
+    ##################### adjust to target pos and pub speed #####################
     with open('test_data.csv', 'a') as f:
         writer = csv.writer(f)
         writer.writerow([goal_pos.x, speed.linear.x, speed.angular.z])
@@ -148,41 +135,46 @@ def main_algorithm(msg):
     global custom_x
     global custom_height
     global diff_ang
-    print(state_of_operation)
+    print("State of the system "+str(state_of_operation))
 
-    if state_of_operation == 2 and ((goal_pos.x and goal_pos.y) < 0.2):
-        state_of_operation = 3
-
+    ######################### State 1 ###############################
     if state_of_operation == 1:
         print("Looking for marker...")
         speed.linear.x = 0
         speed.linear.y = 0
         speed.linear.z = 0
-        speed.angular.z = 0
-        speed.angular.z = 0.5
-        # pub_move.publish(speed)
+        speed.angular.z = 0.3
+        pub_move.publish(speed)
+    ######################### State 1 ###############################
 
+    ######################### State 2 ###############################
     if state_of_operation == 2:
         print("following the marker")
-        pid_x = PID(0.3, 0.05, 0.01, setpoint=0)
+        pid_x = PID(0.1, 0.1, 0.00, setpoint=0)
+        pid_y = PID(0.1, 0.0, 0.00, setpoint=0)
         pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
-        pid_rot = PID(0.5, 0.01, 0.05, setpoint=0)
+        pid_rot = PID(0.5, 0.02, 0.00, setpoint=0)
 
-        speed.linear.x = pid_x(goal_pos.x)
-        speed.linear.y = 0
-        speed.linear.z = pid_z(goal_pos.z - 0,5)
+        speed.linear.x = pid_x(-(goal_pos.x - 1.4))
+        speed.linear.y = pid_x((goal_pos.y))
         speed.linear.z = 0
         speed.angular.z = pid_rot(diff_ang)
-        # pub_move.publish(speed)
+        pub_move.publish(speed)
 
+        if ((goal_pos.x and goal_pos.y) < 0.2): # change to 3. state
+            state_of_operation = 3
+    ######################### State 2 ##############################
+    
+    ######################### State 3 ##############################
     if state_of_operation == 3:
         print("Landing ")
         pub_land.publish(Empty_)
+    ######################### State 3 ##############################
+
 
 
 def get_maker_pos_2(msg):
     if msg.markers:
-
         print("I see the the marker")
         global diff_ang
         global timer_marker
@@ -202,10 +194,6 @@ def get_maker_pos_2(msg):
         print(vec_pos_mark_m_space)
         ######################### position ################################
 
-        print(str(goal_pos.x)+ ":    x")
-        print(str(goal_pos.y)+ ":    y")
-        print(str(goal_pos.z)+ ":    z")
-
         ######################### rotation ################################
         (pitch, roll, yaw_marker) = euler_from_quaternion(
             [msg.markers[0].pose.pose.orientation.x,
@@ -217,17 +205,12 @@ def get_maker_pos_2(msg):
             yaw_marker = yaw_marker - math.pi/2
         elif yaw_marker < -math.pi/2:
             yaw_marker = yaw_marker + 3*math.pi/2
-
         ######################### rotation ################################
         
         ################ writing to csv File ##############################
         # with open('test_data.csv', 'a') as f:
         #         writer = csv.writer(f)
         #         writer.writerow([goal_pos.x, goal_pos.y,goal_pos.z])
-            
-        # with open('test_data.csv', 'a') as f:
-        #     writer = csv.writer(f)
-        #     writer.writerow([yaw_marker, yaw_marker, yaw_marker])
         ############### writing to csv File ###############################
 
         ################ for the marker looking routine ###################
@@ -236,36 +219,19 @@ def get_maker_pos_2(msg):
         timer_marker.start()    
         ################ for the marker looking routine ###################
 
-        pid_x = PID(0.1, 0.1, 0.00, setpoint=0)
-        pid_y = PID(0.1, 0.0, 0.00, setpoint=0)
-        pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
-        pid_rot = PID(0.5, 0.02, 0.00, setpoint=0)
-
-        # speed.linear.x = pid_x(pos_done[0])
-        # speed.linear.y = 0
-        # speed.linear.z = pid_z(pos_done[2])
-        # speed.linear.z = 0
-        speed.linear.x = pid_x(-(goal_pos.x - 1.4))/2
-        speed.linear.y = pid_x((goal_pos.y))
-        # speed.angular.z =  -pid_rot(yaw_marker)/2
-
-        # speed.linear.y = 0.1
-        pub_move.publish(speed)
-        ##################### adjust to target pos and pub speed ######################
-
-
         with open('test_data.csv', 'a') as f:
             writer = csv.writer(f)
             writer.writerow([speed.linear.x, goal_pos.y,  speed.linear.y ])
 
     else:
-        speed.linear.z = 0
-        speed.linear.x = 0
-        speed.linear.y = 0
-        speed.angular.z = 0
-        pub_move.publish(speed)
-        time.sleep(3)
-        ###################### if the process is killed ##########################################
+        # speed.linear.z = 0
+        # speed.linear.x = 0
+        # speed.linear.y = 0
+        # speed.angular.z = 0
+        # pub_move.publish(speed)
+        pass
+
+###################### if the process is killed ##########################################
 def myhook():
     pub_land.publish(Empty_)
     print("shutdown time!")
@@ -279,22 +245,24 @@ def myhook():
 rospy.on_shutdown(myhook)
 ##################### if the process is killed ##########################################
 
-# drone imitates the angel marker !!! working !!!
-
 def main():
     # global state_of_operation
     global timer_marker
     time.sleep(0.5)
     pub_takeoff.publish(Empty_)
     time.sleep(2.5)
+
     rospy.Subscriber("/ar_pose_marker", AlvarMarkers, get_maker_pos_2, queue_size=1)  # get marker position
     # rospy.Subscriber("/bebop/odom", Odometry, callback, queue_size=1)         # is used for debugging and controll the drone without the marker
     # rospy.Subscriber("/bebop/odom", Odometry, main_algorithm, queue_size=1)     # main function (state machine)
     # rospy.Subscriber("/custom_command", Float32, custom_command, queue_size=1)  # resice and handels commands from the UI
-
     
     timer_marker = threading.Timer(5,look_for_marker) # wait 5 seconds before starting to look for the marker 
     timer_marker.start()
+
+    with open('current_state.csv', 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow([state_of_operation])
 
     print("hallo:")
     rospy.spin()
@@ -302,3 +270,5 @@ def main():
 if __name__ == '__main__':
     # while not rospy.is_shutdown():
     main()
+
+    # clear differentiation between stated 
