@@ -291,12 +291,12 @@ def main_algorithm(msg):
     if state_of_operation == 2:
 
         # print("following the marker")
-        pid_x = PID(0.2, 0.01, 0.01, setpoint=0)
+        pid_x = PID(0.7, 0.1, 0.01, setpoint=0)
         pid_y = PID(0.05, 0.0, 0.00, setpoint=0)
-        pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
+        pid_z = PID(0.05, 0.01, 0.05, setpoint=0)
         # pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
 
-        speed.linear.x = pid_x(-(goal_pos.x - 0.5))
+        speed.linear.x = pid_x(-(goal_pos.x - 1.5))
         speed.linear.y = pid_y((goal_pos.y))
         # speed.linear.z = 0
         # speed.angular.z = pid_rot(diff_ang)
@@ -313,7 +313,7 @@ def main_algorithm(msg):
 
         publish_speed_to_drone(speed)
 
-        if (goal_pos.x < 0.3): # change to 3. state
+        if (goal_pos.x < 0.8): # change to 3. state
             state_of_operation = 3
             pass
     ######################### State 2 ##############################
