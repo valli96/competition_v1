@@ -61,16 +61,16 @@ def plotter():
                 data = genfromtxt('goal_pos.csv', delimiter=',')   
                 height_val_vec = height_val*np.ones(len(data)) 
                 ax2[0].clear()
-                ax2[0].plot(data[:,0])
+                ax2[0].plot(data[2:,0])
 
                 ax2[0].set_title("x of the maker")
 
                 ax2[1].clear()
-                ax2[1].plot(data[:,1])
+                ax2[1].plot(data[2:,1])
                 ax2[1].set_title("y of the maker")
 
                 ax2[2].clear()
-                ax2[2].plot(data[:,2])
+                ax2[2].plot(data[2:,2])
                 ax2[2].plot(height_val_vec/100, 'r--', linewidth=1)
                 ax2[2].set_title("yaw of the marker")
             # canvas = FigureCanvasTkAgg(plot2, master=root)  # A tk.DrawingArea.
@@ -79,20 +79,19 @@ def plotter():
                 data = genfromtxt('velocity_drone.csv', delimiter=',')   
                 height_val_vec = height_val*np.ones(len(data)) 
                 ax2[0].clear()
-                ax2[0].plot(data[:,0])
+                ax2[0].plot(data[2:,0])
                 ax2[0].plot(height_val_vec/100, 'r--', linewidth=1)
                 ax2[0].set_title("velocity in x")
 
                 ax2[1].clear()
-                ax2[1].plot(data[:,1])
+                ax2[1].plot(data[2:,1])
                 ax2[1].set_title("velocity in y")
 
                 ax2[2].clear()
-                ax2[2].plot(data[:,2])
+                ax2[2].plot(data[2:,2])
                 ax2[2].set_title("rotational velocity")
 
             # my_data = genfromtxt('pos_marker.csv', delimiter=',')
-            print("my_data")
             # ax1= plot1.add_subplot(projection='3d')
             # ax1.plot3D(my_data[:,0], my_data[:,1], my_data[:,2], 'gray')
             # canvas = FigureCanvasTkAgg(plot1, master=root)  # A tk.DrawingArea.

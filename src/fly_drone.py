@@ -75,8 +75,6 @@ def callback(msg):
     global state_of_operation
 
     if state_of_operation == 2:
-        print(str(state_of_operation) + ":   state_of_operation")
-        print(goal_pos)
 
         ################## odom message of drone ###############################
         pos_done = [msg.pose.pose.position.x,
@@ -95,7 +93,6 @@ def callback(msg):
 
         ################################### calibration IMU ######################
         if first_run == True:
-
             initial_odom = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
             initial_angel = yaw_drone
             first_run = False
@@ -119,7 +116,7 @@ def callback(msg):
         speed.linear.z = 0
         speed.angular.z =  -pid_rot(yaw_marker)/2
 
-        pub_move.publish(speed)
+        # pub_move.publish(speed)
         ##################### adjust to target pos and pub speed #####################
         with open('velocity_drone.csv', 'a') as f:
             writer = csv.writer(f)
@@ -151,7 +148,7 @@ def get_maker_pos_2(msg):
         global state_of_operation
         global goal_pos
         global yaw_marker
-        if state_of_operation == 1:
+        if state_of_operation == 1 and abs(goal_pos.y) < 0.5:
             state_of_operation = 2 
 
         ######################### position ################################
@@ -220,27 +217,12 @@ def main_algorithm(msg):
         speed.linear.x = 0
         speed.linear.y = 0
         speed.linear.z = 0
-        speed.angular.z = 0.3
-        pub_move.publish(speed)
+        speed.angular.z = 0.1
+        # pub_move.publish(speed)
     ######################### State 1 ###############################
 
     ######################### State 2 ###############################
     if state_of_operation == 2:
-
-
-        pid_x = PID(0.1, 0.1, 0.00, setpoint=0)
-        # pid_y = PID(0.1, 0.05, 0.01, setpoint=0)
-        # pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
-        pid_rot = PID(0.5, 0.02, 0.00, setpoint=0)
-
-        speed.linear.x = pid_x(-(goal_pos.x - 2.0))
-        speed.linear.y = 0
-        speed.linear.z = 0
-        speed.angular.z =  -pid_rot(yaw_marker)/2
-
-        pub_move.publish(speed)
-
-
 
         print("following the marker")
         pid_x = PID(0.3, 0.1, 0.00, setpoint=0)
@@ -253,15 +235,14 @@ def main_algorithm(msg):
         # speed.linear.z = 0
         # speed.angular.z = pid_rot(diff_ang)
 
-        speed.linear.x = pid_x(-(goal_pos.x - 2))/4
+        speed.linear.x = 0
         speed.linear.y = 0
         speed.linear.z = 0
         speed.angular.z = 0
 
-        print(str(speed.angular.z)+ "speed.angular.z")
-        pub_move.publish(speed)
+        # pub_move.publish(speed)
 
-        if (goal_pos.x < 2): # change to 3. state
+        if (goal_pos.x < 1): # change to 3. state
             state_of_operation = 3
             pass
     ######################### State 2 ##############################
@@ -272,10 +253,9 @@ def main_algorithm(msg):
         pub_land.publish(Empty_)
     ######################### State 3 ##############################
 
-    # with open('velocity_drone.csv', 'a') as f:
-    #     writer = csv.writer(f)
-    #     writer.writerow([speed.linear.x, speed.linear.y,  speed.angular.z])
-
+    with open('velocity_drone.csv', 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow([speed.linear.x, speed.linear.y,  speed.angular.z])
 
 
 def main():
