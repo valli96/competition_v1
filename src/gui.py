@@ -10,7 +10,6 @@ import threading
 import csv
 import os
 import time
-from simple_pid import PID
 
 
 plt.style.use('fivethirtyeight')
@@ -58,7 +57,7 @@ def plotter():
             # print(height_val)
 
             if var_plot.get() == 1:
-                data = genfromtxt('goal_pos.csv', delimiter=',')   
+                data = genfromtxt('goal_pos.csv', delimiter=',')                   
                 height_val_vec = height_val*np.ones(len(data)) 
                 ax2[0].clear()
                 ax2[0].plot(data[2:,0])
@@ -76,19 +75,23 @@ def plotter():
             # canvas = FigureCanvasTkAgg(plot2, master=root)  # A tk.DrawingArea.
 
             if var_plot.get() == 2:         
-                data = genfromtxt('velocity_drone.csv', delimiter=',')   
+                data = genfromtxt('velocity_drone.csv', delimiter=',') 
+                data_real = genfromtxt('velocity_drone_real.csv', delimiter=',')    
                 height_val_vec = height_val*np.ones(len(data)) 
                 ax2[0].clear()
-                ax2[0].plot(data[2:,0])
+                ax2[0].plot(data[2:,0]) ## this send 
+                ax2[0].plot(data_real[2:,0], 'r') ## this is the actual velocity
                 ax2[0].plot(height_val_vec/100, 'r--', linewidth=1)
                 ax2[0].set_title("velocity in x")
 
                 ax2[1].clear()
                 ax2[1].plot(data[2:,1])
+                ax2[1].plot(data_real[2:,1], "r") ## this is the actual velocity
                 ax2[1].set_title("velocity in y")
 
                 ax2[2].clear()
                 ax2[2].plot(data[2:,2])
+                # ax2[2].plot(data_real[2:,2], "r") ## this is the actual velocity
                 ax2[2].set_title("rotational velocity")
 
             # my_data = genfromtxt('pos_marker.csv', delimiter=',')
@@ -158,7 +161,18 @@ def clear_plots():
         my_empty_csv_w = csv.writer(my_empty_csv)
         my_empty_csv_w.writerow([0.0 , 0.0 ,0.0])
         my_empty_csv_w.writerow([0.0 , 0.0 ,0.0])
-        pass      
+        pass 
+
+    try:
+        os.remove("velocity_drone_real.csv")
+    except:
+        pass
+
+    with open("velocity_drone_real.csv", "w",  newline='') as my_empty_csv:
+        my_empty_csv_w = csv.writer(my_empty_csv)
+        my_empty_csv_w.writerow([0.0 , 0.0 ,0.0])
+        my_empty_csv_w.writerow([0.0 , 0.0 ,0.0])
+        pass          
     # ax1.clear()
     
 

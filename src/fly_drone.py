@@ -8,12 +8,16 @@ from std_msgs.msg import Empty, String, Float32, Header
 from visualization_msgs.msg import Marker
 from tf import TransformListener, Transformer
 from ar_track_alvar_msgs.msg  import AlvarMarkers
+from bebop_msgs.msg import Ardrone3PilotingStateSpeedChanged
+
+
 # from sensor_msgs.msg import CompressedImage
 
 ## general imports
 from tf.transformations import decompose_matrix, euler_from_quaternion
 from os import spawnlp
 import csv
+from numpy import genfromtxt
 import threading
 import math
 import time
@@ -28,12 +32,31 @@ state_of_operation = 0 # 0 starting Drone
 goal_pos = Point()
 Empty_ = Empty()
 speed = Twist()
+current_Odom = Odometry()
+
+
 
 rospy.init_node("speed_controller")
 pub_takeoff = rospy.Publisher("bebop/takeoff", Empty, queue_size=1)
 pub_move = rospy.Publisher("bebop/cmd_vel", Twist, queue_size=1)
 pub_land = rospy.Publisher("/bebop/land", Empty, queue_size=1)
 
+#########################################################################################
+def publish_speed_to_drone(speed):
+    if abs(speed.linear.x) > speed_limit:
+        speed.linear.x = np.sign(speed.linear.x)* speed_limit
+
+    if abs(speed.linear.y)> speed_limit:
+        speed.linear.y = np.sign(speed.linear.y)* speed_limit
+
+    if abs(speed.linear.z) > speed_limit:
+        speed.linear.z = np.sign(speed.linear.z)* speed_limit
+
+    if abs(speed.angular.z) > speed_limit:
+        speed.angular.z = np.sign(speed.angular.z)* speed_limit
+
+    pub_move.publish(speed)
+#########################################################################################
 
 # def diff_angels(x, y):
 #     global theta_marker
@@ -50,13 +73,14 @@ initial_odom = [0, 0, 0]  # [x , y , z]
 initial_angel = 0
 
 yaw_marker = 0
-
-speed_factor = 1
+speed_limit = 0.4
 custom_height = 1
 custom_x = 0.0
 custom_y = 0.0
 custom_angel = 50*np.pi/180
-past_side_marker = "left"  #  left or right are possible
+last_side_marker = "left"  #  left or right are possible
+
+current_velocities = [0,0,0]
 
 
 def callback(msg):
@@ -119,7 +143,7 @@ def callback(msg):
         speed.linear.z = 0
         speed.angular.z =  -pid_rot(yaw_marker)/2
 
-        # pub_move.publish(speed)
+        # publish_speed_to_drone(speed)
         ##################### adjust to target pos and pub speed #####################
         with open('velocity_drone.csv', 'a') as f:
             writer = csv.writer(f)
@@ -135,7 +159,21 @@ def custom_command(msg):
     
 
 def look_for_marker():
+    """
+    function is called after the marker can not be detected any more
+    -> finds the last detected position of the marker
+    -> changes the state for looking after the marker 
+    """
+    global last_side_marker
     global state_of_operation
+    pos_data = genfromtxt('goal_pos.csv', delimiter=',')
+    if pos_data[-1,1] < 0:
+        last_side_marker = "left"
+    if pos_data[-1,1] >= 0:
+        last_side_marker = "right"
+    
+    print(last_side_marker)
+
     if (state_of_operation == 0 or state_of_operation == 2):
         state_of_operation = 1  
     # pub_land.publish(Empty_)
@@ -204,12 +242,32 @@ def get_maker_pos_2(msg):
         pass
 
 
+def get_current_velocities(msg):
+    global current_velocities
+    current_velocities[0]= msg.speedX
+    current_velocities[1]= msg.speedY 
+    current_velocities[2]= msg.speedZ 
+    
+
+
 def main_algorithm(msg):
     global state_of_operation 
     global custom_x
     global custom_height
     global diff_ang
     global goal_pos
+    global last_side_marker
+    global current_velocities
+    ######
+
+    with open('velocity_drone.csv', 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow([speed.linear.x, speed.linear.y,  speed.angular.z])
+    
+    with open('velocity_drone_real.csv', 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow([current_velocities[0], current_velocities[1], current_velocities[2]])
+
     print("State of the system "+str(state_of_operation))
     with open('current_state.csv', 'w') as f:
         writer = csv.writer(f)
@@ -221,8 +279,12 @@ def main_algorithm(msg):
         speed.linear.x = 0
         speed.linear.y = 0
         speed.linear.z = 0
-        speed.angular.z = 0.2
-        pub_move.publish(speed)
+        if last_side_marker == "right":
+            speed.angular.z = -0.2
+        elif last_side_marker == "left":
+            speed.angular.z = 0.2
+
+        publish_speed_to_drone(speed)
     ######################### State 1 ###############################
 
     ######################### State 2 ###############################
@@ -244,22 +306,20 @@ def main_algorithm(msg):
         speed.linear.z = 0
         speed.angular.z = 0
 
-        pub_move.publish(speed)
+        publish_speed_to_drone(speed)
 
         if (goal_pos.x < 1.2): # change to 3. state
             state_of_operation = 3
             pass
     ######################### State 2 ##############################
+
+    ## display of the current velocities 
     
     ######################### State 3 ##############################
     if state_of_operation == 3:
         print("Landing ")
         pub_land.publish(Empty_)
     ######################### State 3 ##############################
-
-    with open('velocity_drone.csv', 'a') as f:
-        writer = csv.writer(f)
-        writer.writerow([speed.linear.x, speed.linear.y,  speed.angular.z])
 
 
 def main():
@@ -275,8 +335,12 @@ def main():
     # rospy.Subscriber("/custom_command", Float32, custom_command, queue_size=1)  # resice and handels commands from the UI
 
     # rospy.Subscriber("/bebop/odom", AlvarMarkers, em, queue_size=1)  # get marker position
+
+
+    rospy.Subscriber("/bebop/states/ardrone3/PilotingState/SpeedChanged", Ardrone3PilotingStateSpeedChanged, get_current_velocities, queue_size=1)
+    
     timer_marker = threading.Timer(3,look_for_marker) # wait 5 seconds before starting to look for the marker 
-    timer_marker.start()
+    timer_marker.start() #velocities
 
     print("hallo:")
     rospy.spin()
@@ -297,6 +361,7 @@ def myhook():
 
 rospy.on_shutdown(myhook)
 ##################### if the process is killed ##########################################
+
 
 
 if __name__ == '__main__':
