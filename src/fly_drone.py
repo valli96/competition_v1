@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.7
 
 ## ros related imports
+import rospy
 from geometry_msgs.msg import Pose, Twist, Point
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Empty, String, Float32, Header
@@ -16,7 +17,6 @@ import csv
 import threading
 import math
 import time
-import rospy
 import numpy as np
 from simple_pid import PID
 
@@ -56,6 +56,8 @@ custom_height = 1
 custom_x = 0.0
 custom_y = 0.0
 custom_angel = 50*np.pi/180
+past_side_marker = "left"  #  left or right are possible
+
 
 def callback(msg):
 
@@ -73,6 +75,7 @@ def callback(msg):
     global custom_angel
     global yaw_marker
     global state_of_operation
+
 
     if state_of_operation == 2:
 
@@ -148,7 +151,8 @@ def get_maker_pos_2(msg):
         global state_of_operation
         global goal_pos
         global yaw_marker
-        if state_of_operation == 1 and abs(goal_pos.y) < 0.5:
+        # if state_of_operation == 1 and abs(goal_pos.y) < 0.5:
+        if state_of_operation == 1 or state_of_operation == 0:
             state_of_operation = 2 
 
         ######################### position ################################
@@ -217,32 +221,32 @@ def main_algorithm(msg):
         speed.linear.x = 0
         speed.linear.y = 0
         speed.linear.z = 0
-        speed.angular.z = 0.1
-        # pub_move.publish(speed)
+        speed.angular.z = 0.2
+        pub_move.publish(speed)
     ######################### State 1 ###############################
 
     ######################### State 2 ###############################
     if state_of_operation == 2:
 
         print("following the marker")
-        pid_x = PID(0.3, 0.1, 0.00, setpoint=0)
-        pid_y = PID(0.1, 0.0, 0.00, setpoint=0)
+        pid_x = PID(0.1, 0.00, 0.00, setpoint=0)
+        pid_y = PID(0.05, 0.0, 0.00, setpoint=0)
         # pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
-        pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
+        # pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
 
-        # speed.linear.x = pid_x(-(goal_pos.x - 2))
-        # speed.linear.y = pid_y((goal_pos.y))
+        speed.linear.x = pid_x(-(goal_pos.x - 2))
+        speed.linear.y = pid_y((goal_pos.y))
         # speed.linear.z = 0
         # speed.angular.z = pid_rot(diff_ang)
 
-        speed.linear.x = 0
-        speed.linear.y = 0
+        # speed.linear.x = 0
+        # speed.linear.y = 0
         speed.linear.z = 0
         speed.angular.z = 0
 
-        # pub_move.publish(speed)
+        pub_move.publish(speed)
 
-        if (goal_pos.x < 1): # change to 3. state
+        if (goal_pos.x < 1.2): # change to 3. state
             state_of_operation = 3
             pass
     ######################### State 2 ##############################
@@ -271,7 +275,7 @@ def main():
     # rospy.Subscriber("/custom_command", Float32, custom_command, queue_size=1)  # resice and handels commands from the UI
 
     # rospy.Subscriber("/bebop/odom", AlvarMarkers, em, queue_size=1)  # get marker position
-    timer_marker = threading.Timer(2,look_for_marker) # wait 5 seconds before starting to look for the marker 
+    timer_marker = threading.Timer(3,look_for_marker) # wait 5 seconds before starting to look for the marker 
     timer_marker.start()
 
     print("hallo:")

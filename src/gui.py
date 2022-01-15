@@ -191,8 +191,11 @@ def select_source():
 
 # tk.Label(root, text="Drone operation app!").pack() # Create a text label
 
-frm_start = tk.Frame(master=root, relief=tk.RIDGE, borderwidth=3)
-frm_start.pack(pady=5)
+frm_tool = tk.Frame(master=root, relief=tk.RIDGE, borderwidth=3)
+frm_tool.pack(pady=5)
+
+frm_main_run = tk.Frame(master=root, relief=tk.RIDGE, borderwidth=3)
+frm_main_run.pack(pady=5)
 
 frm_drone_controll = tk.Frame(master=root, relief=tk.RIDGE, borderwidth=3)
 frm_drone_controll.pack(pady=5)
@@ -237,18 +240,19 @@ def marker_detection():
 
 
 
-tk.Button(master=frm_start, text="roscore", command=lambda: sub.call(['gnome-terminal', '-e', 'roscore'])).pack(side=tk.LEFT)
-# tk.Button(master=frm_start, text="connect drone", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch bebop_tools bebop_nodelet_iv.launch'])).pack(side=tk.LEFT)
-tk.Button(master=frm_start, text="connect drone", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch bebop_driver bebop_node.launch'])).pack(side=tk.LEFT)
-tk.Button(master=frm_start, text="show image", command=lambda: sub.call(['gnome-terminal', '-e', 'rosrun image_view image_view image:=/bebop/image_raw'])).pack(side=tk.LEFT)
+tk.Button(master=frm_tool, text="roscore", command=lambda: sub.call(['gnome-terminal', '-e', 'roscore'])).pack(side=tk.LEFT)
+# tk.Button(master=frm_tool, text="connect drone", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch bebop_tools bebop_nodelet_iv.launch'])).pack(side=tk.LEFT)
+tk.Button(master=frm_tool, text="show image", command=lambda: sub.call(['gnome-terminal', '-e', 'rosrun image_view image_view image:=/bebop/image_raw'])).pack(side=tk.LEFT)
+# tk.Button(master=frm_tool, text="run marker detection", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch ar_track_alvar my.launch'])).pack(side=tk.LEFT)
+tk.Button(master=frm_tool, text="run ros bag", command=lambda: sub.call(['gnome-terminal', '-e', 'rosbag play /home/valentin/drone_base/long.bag'])).pack(side=tk.LEFT)
+tk.Button(master=frm_tool, text="start Gazebo simulation", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch sjtu_drone ardrone_simulation.launch'])).pack(side=tk.LEFT)
 
-# tk.Button(master=frm_start, text="run marker detection", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch ar_track_alvar my.launch'])).pack(side=tk.LEFT)
-tk.Button(master=frm_start, text="run marker detection", command=marker_detection).pack(side=tk.LEFT)
-tk.Button(master=frm_start, text="run ros bag", command=lambda: sub.call(['gnome-terminal', '-e', 'rosbag play /home/valentin/drone_base/long.bag'])).pack(side=tk.LEFT)
-tk.Button(master=frm_start, text="start Gazebo simulation", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch sjtu_drone ardrone_simulation.launch'])).pack(side=tk.LEFT)
-tk.Button(master=frm_start, text="run main script", command=run_script, bg="green", fg="white").pack(side=tk.LEFT)
+tk.Button(master=frm_main_run, text="connect drone", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch bebop_driver bebop_node.launch'])).pack(side=tk.LEFT)
+tk.Button(master=frm_main_run, text="run marker detection", command=marker_detection).pack(side=tk.LEFT)
+tk.Button(master=frm_main_run, text="run main script", command=run_script, bg="green", fg="white").pack(side=tk.LEFT)
 
-frm_source_choice = tk.Frame(master=frm_start, relief=tk.RIDGE, borderwidth=3)
+
+frm_source_choice = tk.Frame(master=frm_tool, relief=tk.RIDGE, borderwidth=3)
 frm_source_choice.pack(side=tk.LEFT)
 R1_source = tk.Radiobutton(master=frm_source_choice, text="Real drone", variable=var_source, value=1,command=select_source).pack(anchor = tk.W)
 R2_source = tk.Radiobutton(master=frm_source_choice, text="Simulation", variable=var_source, value=2,command=select_source).pack(anchor = tk.W)
