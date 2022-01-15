@@ -183,7 +183,7 @@ def look_for_marker():
 
 def get_maker_pos_2(msg):
     if msg.markers:
-        print("I see the the marker")
+        # print("I see the the marker")
         global diff_ang
         global timer_marker
         global state_of_operation
@@ -268,14 +268,14 @@ def main_algorithm(msg):
         writer = csv.writer(f)
         writer.writerow([current_velocities[0], current_velocities[1], current_velocities[2]])
 
-    print("State of the system "+str(state_of_operation))
+    # print("State of the system "+str(state_of_operation))
     with open('current_state.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow([state_of_operation])
 
     ######################### State 1 ###############################
     if state_of_operation == 1:
-        print("Looking for marker...")
+        # print("Looking for marker...")
         speed.linear.x = 0
         speed.linear.y = 0
         speed.linear.z = 0
@@ -290,17 +290,22 @@ def main_algorithm(msg):
     ######################### State 2 ###############################
     if state_of_operation == 2:
 
-        print("following the marker")
-        pid_x = PID(0.1, 0.00, 0.00, setpoint=0)
+        # print("following the marker")
+        pid_x = PID(0.2, 0.01, 0.01, setpoint=0)
         pid_y = PID(0.05, 0.0, 0.00, setpoint=0)
-        # pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
+        pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
         # pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
 
-        speed.linear.x = pid_x(-(goal_pos.x - 2))
+        speed.linear.x = pid_x(-(goal_pos.x - 0.5))
         speed.linear.y = pid_y((goal_pos.y))
         # speed.linear.z = 0
         # speed.angular.z = pid_rot(diff_ang)
 
+        print("Speed before second pid"+  str(speed.linear.x))
+        pid_x = PID(0.3, 0.15, 0.01, setpoint=0)
+        speed.linear.x = pid_x(-(speed.linear.x - current_velocities[0]))
+
+        print("Speed after second pid"+  str(speed.linear.x))
         # speed.linear.x = 0
         # speed.linear.y = 0
         speed.linear.z = 0
@@ -308,12 +313,12 @@ def main_algorithm(msg):
 
         publish_speed_to_drone(speed)
 
-        if (goal_pos.x < 1.2): # change to 3. state
+        if (goal_pos.x < 0.3): # change to 3. state
             state_of_operation = 3
             pass
     ######################### State 2 ##############################
 
-    ## display of the current velocities 
+
     
     ######################### State 3 ##############################
     if state_of_operation == 3:
