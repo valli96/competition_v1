@@ -73,7 +73,7 @@ initial_odom = [0, 0, 0]  # [x , y , z]
 initial_angel = 0
 
 yaw_marker = 0
-speed_limit = 0.4
+speed_limit = 0.35
 custom_height = 1
 custom_x = 0.0
 custom_y = 0.0
@@ -276,11 +276,13 @@ def main_algorithm(msg):
     ######################### State 1 ###############################
     if state_of_operation == 1:
         # print("Looking for marker...")
+        
         speed.linear.x = 0
         speed.linear.y = 0
         speed.linear.z = 0
         if last_side_marker == "right":
-            speed.angular.z = -0.2
+               speed.angular.z = -0.2
+
         elif last_side_marker == "left":
             speed.angular.z = 0.2
 
@@ -294,22 +296,25 @@ def main_algorithm(msg):
         pid_x = PID(0.7, 0.1, 0.01, setpoint=0)
         pid_y = PID(0.05, 0.0, 0.00, setpoint=0)
         pid_z = PID(0.05, 0.01, 0.05, setpoint=0)
-        # pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
+        pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
 
         speed.linear.x = pid_x(-(goal_pos.x - 1.5))
         speed.linear.y = pid_y((goal_pos.y))
         # speed.linear.z = 0
         # speed.angular.z = pid_rot(diff_ang)
 
+        # rotaion torwadas 
+
         print("Speed before second pid"+  str(speed.linear.x))
-        pid_x = PID(0.3, 0.15, 0.01, setpoint=0)
+        pid_x = PID(0.4, 0.15, 0.01, setpoint=0)
         speed.linear.x = pid_x(-(speed.linear.x - current_velocities[0]))
 
         print("Speed after second pid"+  str(speed.linear.x))
         # speed.linear.x = 0
         # speed.linear.y = 0
         speed.linear.z = 0
-        speed.angular.z = 0
+        # speed.angular.z = 0
+        speed.angular.z = pid_rot(goal_pos.y)
 
         publish_speed_to_drone(speed)
 
