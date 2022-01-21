@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.7
 
 ## ros related imports
+from turtle import distance
 import rospy
 from geometry_msgs.msg import Pose, Twist, Point
 from nav_msgs.msg import Odometry
@@ -34,6 +35,9 @@ Empty_ = Empty()
 speed = Twist()
 current_Odom = Odometry()
 
+pose_drone = Pose()
+pose_jackal = Pose()
+pose_difference = Pose()
 
 
 rospy.init_node("speed_controller")
@@ -99,55 +103,59 @@ def callback(msg):
     global custom_angel
     global yaw_marker
     global state_of_operation
+    global pose_drone
+    global pose_jackal
+    global pose_difference
 
 
     if state_of_operation == 2:
+        
+        ################################################################################
+        ############ this was based on the odom topic of the drone
+        ################################################################################
 
         ################## odom message of drone ###############################
-        pos_done = [msg.pose.pose.position.x,
-                    msg.pose.pose.position.y,
-                    msg.pose.pose.position.z]
+        # pos_done = [msg.pose.pose.position.x,
+        #             msg.pose.pose.position.y,
+        #             msg.pose.pose.position.z]
 
-        rot_q = msg.pose.pose.orientation
-        (roll, pitch, yaw_drone) = euler_from_quaternion(
-            [rot_q.x, rot_q.y, rot_q.z, rot_q.w])
+        # rot_q = msg.pose.pose.orientation
+        # (roll, pitch, yaw_drone) = euler_from_quaternion(
+        #     [rot_q.x, rot_q.y, rot_q.z, rot_q.w])
 
-        if yaw_drone > 0:
-            yaw_drone = yaw_drone - math.pi
-        elif yaw_drone < 0:
-            yaw_drone = yaw_drone + math.pi
-        ################## odom message of drone ################################
+        # if yaw_drone > 0:
+        #     yaw_drone = yaw_drone - math.pi
+        # elif yaw_drone < 0:
+        #     yaw_drone = yaw_drone + math.pi
+        # ################## odom message of drone ################################
 
-        ################################### calibration IMU ######################
-        if first_run == True:
-            initial_odom = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
-            initial_angel = yaw_drone
-            first_run = False
-        ################################### calibration IMU ######################
+        # ################################### calibration IMU ######################
+        # if first_run == True:
+        #     initial_odom = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
+        #     initial_angel = yaw_drone
+        #     first_run = False
+        # ################################### calibration IMU ######################
 
-        ##################### adjust to target pos and pub speed ######################
-        pos_done[0] = (msg.pose.pose.position.x - initial_odom[0]) - custom_x # custom_x
-        pos_done[1] = (msg.pose.pose.position.y - initial_odom[1]) - custom_y
-        pos_done[2] = (msg.pose.pose.position.z - initial_odom[2]) - custom_height  # - 2 the number will define how heigh the drone can hover 
-        # drone_rot = (msg.pose.pose.position.z - initial_odom[3]) - initial_angel  #  this is the yaw of the drone
+        # ##################### adjust to target pos and pub speed ######################
+        # # pos_done[0] = (msg.pose.pose.position.x - initial_odom[0]) - custom_x # custom_x
+        # # pos_done[1] = (msg.pose.pose.position.y - initial_odom[1]) - custom_y
+        # # pos_done[2] = (msg.pose.pose.position.z - initial_odom[2]) - custom_height  # - 2 the number will define how heigh the drone can hover 
+        # # # drone_rot = (msg.pose.pose.position.z - initial_odom[3]) - initial_angel  #  this is the yaw of the drone
 
+        # # publish_speed_to_drone(speed)
+        # ##################### adjust to target pos and pub speed #####################
+        # with open('velocity_drone.csv', 'a') as f:
+        #     writer = csv.writer(f)
+        #     writer.writerow([speed.linear.x, speed.linear.y, speed.angular.z])
 
-        pid_x = PID(0.1, 0.1, 0.00, setpoint=0)
-        pid_y = PID(0.1, 0.05, 0.01, setpoint=0)
-        # pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
-        pid_rot = PID(0.5, 0.02, 0.00, setpoint=0)
+        ################################################################################
+        ############ this was based on the pose value from opto-track
+        ################################################################################
 
-        speed.linear.x = pid_x(-(goal_pos.x - 2.0))
-        # speed.linear.y = -pid_y(-goal_pos.y)
-        speed.linear.y = 0
-        speed.linear.z = 0
-        speed.angular.z =  -pid_rot(yaw_marker)/2
+        pose_difference.position.x = pose_jackal.position.x - pose_drone.position.x
+        pose_difference.position.y = pose_jackal.position.y - pose_drone.position.y
+        pose_difference.position.z = pose_jackal.position.z - pose_drone.position.z 
 
-        # publish_speed_to_drone(speed)
-        ##################### adjust to target pos and pub speed #####################
-        with open('velocity_drone.csv', 'a') as f:
-            writer = csv.writer(f)
-            writer.writerow([speed.linear.x, speed.linear.y, speed.angular.z])
 
 
 
@@ -231,8 +239,6 @@ def get_maker_pos_2(msg):
         with open('goal_pos.csv', 'a') as f:
             writer = csv.writer(f)
             writer.writerow([goal_pos.x, goal_pos.y, yaw_marker])
-
-
     else:
         # speed.linear.z = 0
         # speed.linear.x = 0
@@ -240,6 +246,13 @@ def get_maker_pos_2(msg):
         # speed.angular.z = 0
         # pub_move.publish(speed)
         pass
+
+# def get_pose_opto_track_jackal(msg):
+#     global pose_drone
+    
+
+# def get_pose_opto_track_jackal(msg):
+#     global pose_
 
 
 def get_current_velocities(msg):
@@ -321,15 +334,13 @@ def main_algorithm(msg):
         if (goal_pos.x < 0.8): # change to 3. state
             state_of_operation = 3
             pass
-    ######################### State 2 ##############################
-
-
+    ######################### end State 2 ##############################
     
     ######################### State 3 ##############################
     if state_of_operation == 3:
         print("Landing ")
         pub_land.publish(Empty_)
-    ######################### State 3 ##############################
+    ######################### end State 3 ##############################
 
 
 def main():
@@ -348,6 +359,10 @@ def main():
 
 
     rospy.Subscriber("/bebop/states/ardrone3/PilotingState/SpeedChanged", Ardrone3PilotingStateSpeedChanged, get_current_velocities, queue_size=1)
+
+)
+    # rospy.Subscriber("*/drone_1", Pose, get_pose_opto_track_drone, queue_size=1)
+
     
     timer_marker = threading.Timer(3,look_for_marker) # wait 5 seconds before starting to look for the marker 
     timer_marker.start() #velocities
