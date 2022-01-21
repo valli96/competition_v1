@@ -33,14 +33,24 @@ state_of_operation = 0 # 0 starting Drone
 goal_pos = Point()
 Empty_ = Empty()
 speed = Twist()
+
+
+
 current_Odom = Odometry()
 
 pose_drone = Pose()
 pose_jackal = Pose()
 pose_difference = Pose()
 
+camera_direction = Twist()
+
 
 rospy.init_node("speed_controller")
+
+# rostopic pub rostopic pub /bebop/camera_control geometry_msgs/Twist 
+
+camera_controll = rospy.Publisher("/bebop/camera_control", Twist, queue_size=1)
+
 pub_takeoff = rospy.Publisher("bebop/takeoff", Empty, queue_size=1)
 pub_move = rospy.Publisher("bebop/cmd_vel", Twist, queue_size=1)
 pub_land = rospy.Publisher("/bebop/land", Empty, queue_size=1)
@@ -69,6 +79,11 @@ def publish_speed_to_drone(speed):
 #     a = (x - y) % (math.pi*2)
 #     b = (y - x) % (math.pi*2)
 #     return -a if a < b else b
+
+pid_x = PID(0.7, 0.1, 0.01, setpoint=0)
+pid_y = PID(0.05, 0.0, 0.00, setpoint=0)    
+pid_z = PID(0.05, 0.01, 0.05, setpoint=0)
+pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
 
 
 diff_ang = 0
@@ -158,8 +173,6 @@ def callback(msg):
 
 
 
-
-
 def custom_command(msg):
     global custom_height
     custom_height = msg.data/100
@@ -184,7 +197,10 @@ def look_for_marker():
 
     if (state_of_operation == 0 or state_of_operation == 2):
         state_of_operation = 1  
+        state_of_operation = 4
     # pub_land.publish(Empty_)
+
+    # state_of_operation = 8  
 
 
 
@@ -247,13 +263,9 @@ def get_maker_pos_2(msg):
         # pub_move.publish(speed)
         pass
 
-# def get_pose_opto_track_jackal(msg):
+# def get_pose_opto_track_drone(msg):
 #     global pose_drone
     
-
-# def get_pose_opto_track_jackal(msg):
-#     global pose_
-
 
 def get_current_velocities(msg):
     global current_velocities
@@ -271,6 +283,9 @@ def main_algorithm(msg):
     global goal_pos
     global last_side_marker
     global current_velocities
+    global pid_x
+    global pid_y    
+    global pid_z
     ######
 
     with open('velocity_drone.csv', 'a') as f:
@@ -332,46 +347,46 @@ def main_algorithm(msg):
         publish_speed_to_drone(speed)
 
         if (goal_pos.x < 0.8): # change to 3. state
-            state_of_operation = 3
+            state_of_operation = 8
             pass
     ######################### end State 2 ##############################
 
-    ######################### State 4 ##############################
-    # speed.linear.x = 0
-    # speed.linear.y = 0
-    # speed.linear.z = 0
-    # speed.angular.z = 0
-    # publish_speed_to_drone(speed)
-    
-    # rostopic pub rostopic pub /bebop/camera_control geometry_msgs/Twist 
-    #camera_direction.angular.x = -90
+    ######################### State 3 ##############################
+    # if state_of_operation == 3:
+    #     print("Landing ")
+    #     pub_land.publish(Empty_)
+    ######################### end State 3 ##############################
 
-    # time.sleep(0.5)
+    ######################### State 4 ##############################
+    if state_of_operation == 4:
+        speed.linear.x = 0
+        speed.linear.y = 0
+        speed.linear.z = 0
+        speed.angular.z = 0
+        publish_speed_to_drone(speed)
+        camera_direction.angular.y = -90
+        camera_controll.publish(camera_direction)
+        time.sleep(0.5)
+        state_of_operation = 5
     ######################### end State 4 ##############################
 
     ######################### State 5 ##############################
-
-    # speed.linear.x = pid_x(-(goal_pos.x))
-    # speed.linear.y = pid_y((goal_pos.y))
-    # speed.linear.z = pid_z(-(goal_pos.z - 0.30))
-    # speed.angular.z = 0
-    # publish_speed_to_drone(speed)
-    # if (goal_pos.x < 0.1 and goal_pos.y < 0.1 and goal_pos.z < 0.1):
-    #     state_of_operation = 8
-
+    if state_of_operation == 5:
+        speed.linear.x = pid_x(-(goal_pos.x))
+        speed.linear.y = pid_y((goal_pos.y))
+        # speed.linear.z = pid_z(-(goal_pos.z - 0.30)) # sign and distance need to be checked 
+        speed.angular.z = 0
+        publish_speed_to_drone(speed)
+        if (goal_pos.x < 0.1 and goal_pos.y < 0.1):
+            state_of_operation = 8
     ######################### end State 5 ##############################
 
     ######################### State 8 ##############################
-    # if state_of_operation == 8:
-    #     print("Landing ")
-    #     pub_land.publish(Empty_)
-    ######################### end State 8 ##############################
-
-    ######################### State 8 ##############################
-    if state_of_operation == 3:
+    if state_of_operation == 8:
         print("Landing ")
         pub_land.publish(Empty_)
     ######################### end State 8 ##############################
+
 
 
 def main():
@@ -383,16 +398,12 @@ def main():
 
     rospy.Subscriber("/bebop/odom", Odometry, main_algorithm, queue_size=1)     # main function (state machine)
     rospy.Subscriber("/ar_pose_marker", AlvarMarkers, get_maker_pos_2, queue_size=1)  # get marker position
-    # rospy.Subscriber("/bebop/odom", Odometry, callback, queue_size=1)         # is used for debugging and controll the drone without the marker
-    # rospy.Subscriber("/custom_command", Float32, custom_command, queue_size=1)  # resice and handels commands from the UI
-
-    # rospy.Subscriber("/bebop/odom", AlvarMarkers, em, queue_size=1)  # get marker position
-
-    # rospy.Subscriber("*/drone_1", Pose, get_pose_opto_track_drone, queue_size=1)
-
     rospy.Subscriber("/bebop/states/ardrone3/PilotingState/SpeedChanged", Ardrone3PilotingStateSpeedChanged, get_current_velocities, queue_size=1)
 
-
+    # rospy.Subscriber("/bebop/odom", Odometry, callback, queue_size=1)         # is used for debugging and controll the drone without the marker
+    # rospy.Subscriber("/custom_command", Float32, custom_command, queue_size=1)  # resice and handels commands from the UI
+    # rospy.Subscriber("/bebop/odom", AlvarMarkers, em, queue_size=1)  # get marker positions
+    # rospy.Subscriber("*/drone_1", Pose, get_pose_opto_track_drone, queue_size=1)
     
     timer_marker = threading.Timer(3,look_for_marker) # wait 5 seconds before starting to look for the marker 
     timer_marker.start() #velocities
@@ -410,7 +421,7 @@ def myhook():
     speed.linear.y = 0
     speed.linear.z = 0
     pub_move.publish(speed)
-    state_of_operation = 3
+    state_of_operation = 8
     time.sleep(2)
     print("program aborted drone will land")
 
@@ -421,8 +432,4 @@ rospy.on_shutdown(myhook)
 
 if __name__ == '__main__':
     # while not rospy.is_shutdown():
-    main() pos_data = genfromtxt('goal_pos.csv', delimiter=',')
-    if pos_data[-1,1] < 0:
-        last_side_marker = "left"
-    if pos_data[-1,1] >= 0:
-        last_side_marker = "right"
+    main()
