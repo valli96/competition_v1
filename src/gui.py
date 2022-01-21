@@ -297,32 +297,84 @@ def update_state():
     while True:
         time.sleep(0.5)
         current_state = genfromtxt("current_state.csv")
-        if current_state == 0:
-            state_canvas.itemconfig(my_oval1, fill="green")
-            state_canvas.itemconfig(my_oval2, fill="")
-            state_canvas.itemconfig(my_oval3,  fill="")
-            state_canvas.itemconfig(my_oval4, fill="")
-        if current_state == 1:
-            state_canvas.itemconfig(my_oval1, fill="")
-            state_canvas.itemconfig(my_oval2, fill="green")
-            state_canvas.itemconfig(my_oval3, fill="")
-            state_canvas.itemconfig(my_oval4, fill="")
-        if current_state == 2:
-            state_canvas.itemconfig(my_oval1, fill="")
-            state_canvas.itemconfig(my_oval2, fill="")
-            state_canvas.itemconfig(my_oval3, fill="green")
-            state_canvas.itemconfig(my_oval4, fill="")
-        if current_state == 3:     
-            state_canvas.itemconfig(my_oval1, fill="")
-            state_canvas.itemconfig(my_oval2, fill="")
-            state_canvas.itemconfig(my_oval3, fill="")
-            state_canvas.itemconfig(my_oval4, fill="green")
+        if current_state == 0: # state Take off
+            state_canvas_follow.itemconfig(my_oval0, fill="green")
+            state_canvas_follow.itemconfig(my_oval1, fill="")
+            state_canvas_follow.itemconfig(my_oval2,  fill="")
+            state_canvas_follow.itemconfig(my_oval3, fill="")
+
+            state_canvas_land.itemconfig(my_oval4, fill="")
+            state_canvas_land.itemconfig(my_oval5, fill="")
+            state_canvas_land.itemconfig(my_oval8, fill="")
+     
+        state_canvas_follow.itemconfig(my_oval3, fill="")
+        if current_state == 1: # Looking for marker 
+            state_canvas_follow.itemconfig(my_oval0, fill="")
+            state_canvas_follow.itemconfig(my_oval1, fill="green")
+            state_canvas_follow.itemconfig(my_oval2, fill="")
+            state_canvas_follow.itemconfig(my_oval3, fill="")
+
+            state_canvas_land.itemconfig(my_oval4, fill="")
+            state_canvas_land.itemconfig(my_oval5, fill="")
+            state_canvas_land.itemconfig(my_oval8, fill="")
+
+        if current_state == 2:  # following maker 
+            state_canvas_follow.itemconfig(my_oval0, fill="")
+            state_canvas_follow.itemconfig(my_oval1, fill="")
+            state_canvas_follow.itemconfig(my_oval2, fill="green")
+            state_canvas_follow.itemconfig(my_oval3, fill="")
+
+            state_canvas_land.itemconfig(my_oval4, fill="")
+            state_canvas_land.itemconfig(my_oval5, fill="")
+            state_canvas_land.itemconfig(my_oval8, fill="")
+        if current_state == 3:  # following maker 
+            state_canvas_follow.itemconfig(my_oval0, fill="")
+            state_canvas_follow.itemconfig(my_oval1, fill="")
+            state_canvas_follow.itemconfig(my_oval2, fill="green")
+            state_canvas_follow.itemconfig(my_oval3, fill="")
+
+            state_canvas_land.itemconfig(my_oval4, fill="")
+            state_canvas_land.itemconfig(my_oval5, fill="")
+            state_canvas_land.itemconfig(my_oval8, fill="")
+        if current_state == 4:   # landing 
+            state_canvas_follow.itemconfig(my_oval0, fill="")
+            state_canvas_follow.itemconfig(my_oval1, fill="")
+            state_canvas_follow.itemconfig(my_oval2, fill="")
+            state_canvas_follow.itemconfig(my_oval3, fill="")
+
+            state_canvas_land.itemconfig(my_oval4, fill="green")
+            state_canvas_land.itemconfig(my_oval5, fill="")
+            state_canvas_land.itemconfig(my_oval8, fill="")
+        if current_state == 5:   #  
+            state_canvas_follow.itemconfig(my_oval0, fill="")
+            state_canvas_follow.itemconfig(my_oval1, fill="")
+            state_canvas_follow.itemconfig(my_oval2, fill="")
+            state_canvas_follow.itemconfig(my_oval3, fill="")
+
+            state_canvas_land.itemconfig(my_oval4, fill="")
+            state_canvas_land.itemconfig(my_oval5, fill="green")
+            state_canvas_land.itemconfig(my_oval8, fill="")
+        if current_state == 8:   # landing 
+            state_canvas_follow.itemconfig(my_oval0, fill="")
+            state_canvas_follow.itemconfig(my_oval1, fill="")
+            state_canvas_follow.itemconfig(my_oval2, fill="")
+            state_canvas_follow.itemconfig(my_oval3, fill="")
+
+            state_canvas_land.itemconfig(my_oval4, fill="")
+            state_canvas_land.itemconfig(my_oval5, fill="")
+            state_canvas_land.itemconfig(my_oval8, fill="green")
         ## update cancas
         root.update()
 
 # tk.Button(master=frm_drone_controll, text="Drone Land",  command=lambda: sub.call(['rostopic', 'pub', '-1', 'bebop/land', 'std_msgs/Empty']), bg="red", fg="white").pack(side=tk.LEFT)
 tk.Button(master=frm_drone_controll, text="Drone Land",  command=drone_land, bg="red", fg="white").pack(side=tk.LEFT)
 tk.Button(master=frm_drone_controll, text="stop drone", command=lambda: sub.call(['rostopic', 'pub', '-1', '/custom_command','std_msgs/String', 'stop'])).pack(side=tk.LEFT)
+
+# tk.Button(master=frm_drone_controll, text="rotate camera \n forwad", command=lambda: sub.call(['rostopic pub /bebop/camera_control geometry_msgs/Twist "linear:\ x: 0.0\ y: 0.0\ z: 0.0\angular:\ x: 0.0\ y: 0.0\ z: 0.0"'])).pack(side=tk.LEFT)
+tk.Button(master=frm_drone_controll, text="rotate camera \n down", command=lambda: sub.call(['gnome-terminal', '-e', 'rostopic pub -1 /bebop/camera_control geometry_msgs/Twist -f /home/valentin/camera_rotation_down.yaml'])).pack(side=tk.LEFT)
+tk.Button(master=frm_drone_controll, text="rotate camera \n forward", command=lambda: sub.call(['gnome-terminal', '-e', 'rostopic pub -1 /bebop/camera_control geometry_msgs/Twist -f /home/valentin/camera_rotation_forward.yaml'])).pack(side=tk.LEFT)
+
+# rostopic pub /bebop/camera_control geometry_msgs/Twist -f rotation_forwar.yaml
 tk.Button(master=frm_drone_controll, text="Drone Take off",  command=drone_take_off, bg="green", fg="white").pack(side=tk.LEFT)
 
 
@@ -356,18 +408,30 @@ tk.Button(master=frm_speed, text="pub speed", command=pub_speed).pack(side=tk.LE
 
 
 
-state_canvas = tk.Canvas(master = frm_state, width=165, height=120)
-state_canvas.pack()
+state_canvas_follow = tk.Canvas(master = frm_state, width=165, height=120)
+state_canvas_follow.pack(side=tk.LEFT)
+state_canvas_land = tk.Canvas(master = frm_state, width=165, height=120)
+state_canvas_land.pack(side=tk.LEFT)
 
-my_oval1 = state_canvas.create_oval(1, 1, 30, 30)  # Create a circle on the Canvas
-my_oval2 = state_canvas.create_oval(1, 30, 30, 60)  # Create a circle on the Canvas
-my_oval3 = state_canvas.create_oval(1, 60, 30, 90)  # Create a circle on the Canvas
-my_oval4 = state_canvas.create_oval(1, 90, 30, 120)  # Create a circle on the Canvas
-
+# follow
+my_oval0 = state_canvas_follow.create_oval(1, 1, 30, 30)  # Create a circle on the Canvas
+my_oval1 = state_canvas_follow.create_oval(1, 30, 30, 60)  # Create a circle on the Canvas
+my_oval2 = state_canvas_follow.create_oval(1, 60, 30, 90)  # Create a circle on the Canvas
+my_oval3 = state_canvas_follow.create_oval(1, 90, 30, 120)  # Create a circle on the Canvas
 lab_state_0 = tk.Label(master=frm_state, text="Take off").place(x=35,y=0)
 lab_state_1 = tk.Label(master=frm_state, text="Looking for marker").place(x=35,y=30)
 lab_state_2 = tk.Label(master=frm_state, text="Following marker").place(x=35,y=60)
-lab_state_3 = tk.Label(master=frm_state, text="Landing").place(x=35,y=90)
+lab_state_3 = tk.Label(master=frm_state, text="moving over vehicle").place(x=35,y=90)
+
+# landing
+my_oval4 = state_canvas_land.create_oval(1, 1, 30, 30)  # Create a circle on the Canvas
+my_oval5 = state_canvas_land.create_oval(1, 30, 30, 60)  # Create a circle on the Canvas
+my_oval8 = state_canvas_land.create_oval(1, 60, 30, 90)  # Create a circle on the Canvas
+lab_state_0 = tk.Label(master=frm_state, text="rotaion camera").place(x=200,y=0)
+lab_state_1 = tk.Label(master=frm_state, text="position over marker").place(x=200,y=30)
+lab_state_2 = tk.Label(master=frm_state, text="Landing").place(x=200,y=60)
+# lab_state_3 = tk.Label(master=frm_state, text="Landing").place(x=35,y=90)
+
 
 uppdate_thread = threading.Thread(target=update_state)
 uppdate_thread.start()
