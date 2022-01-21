@@ -1,5 +1,24 @@
-# drone_competition
-for DeltaX competition
+# Delta X drone competition
+
+## Next task
+
+- [x] fix camera rotation
+- [x] look that the transformation tree exist
+- [] implement the landing proses **state 5 & state 8**
+- [] read drone_pos from opto-track
+- [] implement velocity function based on 2 sources **function 1 in .svg**
+- [] implement **function 2**
+- [] implement detection of marker stopt 
+- [] combine following and landing by implementing  **state 3**
+- [] adding the second marker to the function
+- [] change **state 2** to handel 2 markers
+- [] implement **state 8**  
+- [] implement different error handlers for obivous wrong values
+- [] use the start estimation of the ground vehicle to improve the certainty of the ground vehicle position
+
+### nice to have
+- [] implement **state 7**
+- [] change into main into a class
 
 
 ## Use opto-track 
@@ -15,3 +34,9 @@ for DeltaX competition
 6. rostopic list 
 7. rostopic echo \*/drone_1 & \*/jackal
 8. this this should be a pose msg
+
+
+### how to rotate camera
+
+
+### open transformation tree
