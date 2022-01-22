@@ -2,9 +2,10 @@
 
 ## ros related imports
 # from tkinter.tix import Tree
-from multiprocessing import log_to_stderr
-from turtle import distance
+# from tkinter.tix import Tree
 # from gui import marker_detection
+# from multiprocessing import log_to_stderr
+# from turtle import distance
 import rospy
 from geometry_msgs.msg import Pose, Twist, Point
 from nav_msgs.msg import Odometry
@@ -32,6 +33,21 @@ state_of_operation = 0 # 0 starting Drone
                        # 1 looking for the marker 
                        # 2 following the marker
                        # 3 landing on the marker
+                       # 4 looking for the marker 
+                       # 5 following the marker
+                       # 6 landing on the marker
+                       # 7 looking for the marker 
+                       # 8 following the marker
+
+                       # 10 landing without visual 
+
+
+
+# if True jump to state 10
+# if False jump to state 3
+land_without_visual_feedback = True
+pose_drone_accurate = [0,0,0]
+
 
 goal_pos = Point()
 Empty_ = Empty()
@@ -41,15 +57,12 @@ marker_visible_stage_2 = False
 
 current_Odom = Odometry()
 
-
 ### variables for opto-track implementation 
 pose_drone = Pose()
 
 
 marker_visible = False
-
 camera_direction = Twist()
-
 marker_detected_stage_2 = False
 
 
@@ -93,7 +106,7 @@ pid_y = PID(0.05, 0.0, 0.00, setpoint=0)
 pid_z = PID(0.05, 0.01, 0.05, setpoint=0)
 pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
 
-ground_vehicle_stopt = False
+ground_vehicle_stopped = False
 
 diff_ang = 0
 first_run = True
@@ -244,8 +257,8 @@ def get_maker_pose(msg):
                                 msg.markers[0].pose.pose.position.y,
                                 msg.markers[0].pose.pose.position.z]
 
-        goal_pos.x =  vec_pos_mark_m_space[0] - 0.2 #- math.cos(diff_ang)*0.5
-        goal_pos.y = -vec_pos_mark_m_space[1] + 0.2 #- math.sin(diff_ang)*0.5
+        goal_pos.x =  vec_pos_mark_m_space[0] # - 0.2 #- math.cos(diff_ang)*0.5
+        goal_pos.y = -vec_pos_mark_m_space[1] # + 0.2 #- math.sin(diff_ang)*0.5
         goal_pos.z = vec_pos_mark_m_space[2]
         print(vec_pos_mark_m_space)
         ######################### position ################################
@@ -288,7 +301,17 @@ def get_current_velocities(msg):
     current_velocities[0]= msg.speedX
     current_velocities[1]= msg.speedY 
     current_velocities[2]= msg.speedZ 
-    
+
+def detect_ground_vehicle_stop():
+    global ground_vehicle_stopped
+    if state_of_operation == 2:
+        pos_data = genfromtxt('goal_pos.csv', delimiter=',')
+        average_x = sum(abs(pos_data[0,:-20]))
+        average_y = sum(abs(pos_data[0,:-20]))
+
+
+        if (average_x < 10 and average_y < 10):
+            ground_vehicle_stopped = True
 
 
 def main_algorithm(msg):
@@ -300,10 +323,11 @@ def main_algorithm(msg):
     global last_side_marker
     global current_velocities
     global pid_x, pid_y, pid_z
-    global ground_vehicle_stopt
+    global ground_vehicle_stopped
     global initial_odom
     global first_run
     global marker_visible_stage_2
+    global pose_drone_accurate 
     ######
 
     if first_run == True:
@@ -322,7 +346,7 @@ def main_algorithm(msg):
     with open('current_state.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow([state_of_operation])
-        
+
     ######################### State 1 ###############################
     if state_of_operation == 1:
         # print("Looking for marker...")
@@ -342,28 +366,39 @@ def main_algorithm(msg):
     ######################### State 2 ###############################
     if state_of_operation == 2:
 
-        speed.linear.x = pid_x(-(goal_pos.x - 1.5))
-        speed.linear.y = pid_y((goal_pos.y))
+        pid_x = PID(0.3, 0.04, 0.01, setpoint=0)
+        pid_y = PID(0.2, 0.0, 0.00, setpoint=0)    
+        # pid_z = PID(0.05, 0.01, 0.05, setpoint=0)
+        # pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
+
+        # speed.linear.x = pid_x(-(goal_pos.x - 1.5))
+        speed.linear.y = pid_y(-(goal_pos.y))
         # speed.linear.z = 0
         # speed.angular.z = pid_rot(diff_ang)
 
         print("Speed before second pid"+  str(speed.linear.x))
-        pid_x_2 = PID(0.4, 0.15, 0.01, setpoint=0)           ### my second PID controller
-        speed.linear.x = pid_x_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
-
+        pid_x_2 = PID(2, 0.15, 0.01, setpoint=0)           ### my second PID controller
+        pid_y_2 = PID(0.5, 0.05, 0.01, setpoint=0)           ### my second PID controller
+        # speed.linear.x = pid_x_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
+        speed.linear.y = pid_y_2((speed.linear.y - current_velocities[1]))
         print("Speed after second pid"+  str(speed.linear.x))
         # speed.linear.x = 0
         # speed.linear.y = 0
         speed.linear.z = 0
         # speed.angular.z = 0
-        speed.angular.z = pid_rot(goal_pos.y)
+        # speed.angular.z = pid_rot(goal_pos.y)
 
         publish_speed_to_drone(speed)
 
+        # timer_ground_vehicle_stops = threading.Timer(3,detect_ground_vehicle_stop) # wait 5 seconds before starting to look for the marker 
+        # timer_marker.start() #velocities
+
 
     ### assumption ground vehicle has stopt 
-        if (ground_vehicle_stopt == True and goal_pos.x < 1.5 and goal_pos.y < 0.3 and diff_ang < 0.5): # 
+        if (ground_vehicle_stopped == True and goal_pos.x < 1.5 and goal_pos.y < 0.3): # 
             state_of_operation = 3
+            print("Ich bin hier")
+            pub_land.publish(Empty_)
 
     ######################### end State 2 ##############################
 
@@ -407,13 +442,13 @@ def main_algorithm(msg):
         # pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
         # pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
 
-    ######################################################################
-    # this next section need to be switched manually depending on the drone  
-    ######################################################################
+    # ######################################################################
+    # # this next section need to be switched manually depending on the drone  
+    # ######################################################################
         if True:
             speed.linear.x = pid_x(-(goal_pos.x))*0.5   # since the camera calibration is wrong  
             speed.linear.y = pid_y((goal_pos.y))*0.5    # since the camera calibration is wrong
-            pid_2 = PID(0.4, 0.15, 0.01, setpoint=0)           ### my second PID controller
+            pid_2 = PID(0.7, 0.15, 0.01, setpoint=0)           ### my second PID controller
             speed.linear.x = pid_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
             speed.linear.y = pid_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
 
@@ -437,7 +472,7 @@ def main_algorithm(msg):
         speed.linear.y = 0
         speed.angular.z = 0
         speed.linear.z = pid_z((msg.pose.pose.postion.z - initial_odom[2]) - 2) ## goes to 2 m
-        publish_speed_to_drone(speed)
+        # publish_speed_to_drone(speed)
     ######################### end State 6 ##############################
     
     ######################### State 7 ##############################
@@ -458,6 +493,29 @@ def main_algorithm(msg):
     ######################### end State 8 ##############################
 
 
+    ######################### State 10 ##############################
+    if state_of_operation == 10:
+        get_accurate_ground_vehicle_pose()
+        speed.linear.x = pid_x()
+        speed.linear.y = pid_y()
+        speed.linear.z = pid_z()
+    ######################### end State 10 ##############################
+
+def get_accurate_ground_vehicle_pose():
+    global pose_drone_accurate 
+    speed.linear.x = 0
+    speed.linear.y = 0
+    speed.linear.z = 0
+    speed.angular.z = 0
+    # publish_speed_to_drone(speed)
+    time.sleep(4)
+    data =  np.array(genfromtxt('goal_pos.csv', delimiter=','))
+    pose_drone_accurate[0] = sum(abs(data[-20:,0]))/20
+    pose_drone_accurate[1] = sum(abs(data[-20:,1]))/20
+    pose_drone_accurate[2] = sum(abs(data[-20:,2]))/20
+ 
+
+
 def main():
     # global state_of_operation
     global timer_marker
@@ -476,6 +534,10 @@ def main():
     
     timer_marker = threading.Timer(3,look_for_marker) # wait 5 seconds before starting to look for the marker 
     timer_marker.start() #velocities
+
+    # timer_ground_vehicle_stops = threading.Timer(3,detect_ground_vehicle_stop) # wait 5 seconds before starting to look for the marker 
+    # timer_marker.start() #velocities
+
 
     print("hallo:")
     rospy.spin()
