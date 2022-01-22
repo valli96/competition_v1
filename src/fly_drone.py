@@ -2,6 +2,7 @@
 
 ## ros related imports
 from turtle import distance
+# from gui import marker_detection
 import rospy
 from geometry_msgs.msg import Pose, Twist, Point
 from nav_msgs.msg import Odometry
@@ -44,6 +45,8 @@ pose_difference = Pose()
 
 camera_direction = Twist()
 
+marker_detected_stage_2 = False
+
 
 rospy.init_node("speed_controller")
 
@@ -69,7 +72,7 @@ def publish_speed_to_drone(speed):
     if abs(speed.angular.z) > speed_limit:
         speed.angular.z = np.sign(speed.angular.z)* speed_limit
 
-    # pub_move.publish(speed)
+    pub_move.publish(speed)
 #########################################################################################
 
 # def diff_angels(x, y):
@@ -222,8 +225,8 @@ def get_maker_pos_2(msg):
                                 msg.markers[0].pose.pose.position.y,
                                 msg.markers[0].pose.pose.position.z]
 
-        goal_pos.x = vec_pos_mark_m_space[0] #- math.cos(diff_ang)*0.5
-        goal_pos.y = -vec_pos_mark_m_space[1] #- math.sin(diff_ang)*0.5
+        goal_pos.x = vec_pos_mark_m_space[0] - 0.2 #- math.cos(diff_ang)*0.5
+        goal_pos.y = -vec_pos_mark_m_space[1] + 0.2 #- math.sin(diff_ang)*0.5
         goal_pos.z = vec_pos_mark_m_space[2]
         print(vec_pos_mark_m_space)
         ######################### position ################################
@@ -300,7 +303,6 @@ def main_algorithm(msg):
     with open('current_state.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow([state_of_operation])
-
     ######################### State 1 ###############################
     if state_of_operation == 1:
         # print("Looking for marker...")
@@ -331,11 +333,10 @@ def main_algorithm(msg):
         # speed.linear.z = 0
         # speed.angular.z = pid_rot(diff_ang)
 
-        # rotaion torwadas 
 
         print("Speed before second pid"+  str(speed.linear.x))
-        pid_x = PID(0.4, 0.15, 0.01, setpoint=0)
-        speed.linear.x = pid_x(-(speed.linear.x - current_velocities[0]))
+        pid_x_2 = PID(0.4, 0.15, 0.01, setpoint=0)           ### my second PID controller
+        speed.linear.x = pid_x_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
 
         print("Speed after second pid"+  str(speed.linear.x))
         # speed.linear.x = 0
@@ -346,9 +347,10 @@ def main_algorithm(msg):
 
         publish_speed_to_drone(speed)
 
-        if (goal_pos.x < 0.8): # change to 3. state
-            state_of_operation = 8
-            pass
+        # if (goal_pos.x < 0.8): # change to 3. state
+        #     state_of_operation = 8
+        #     pass
+
     ######################### end State 2 ##############################
 
     ######################### State 3 ##############################
@@ -372,18 +374,33 @@ def main_algorithm(msg):
 
     ######################### State 5 ##############################
     if state_of_operation == 5:
-        speed.linear.x = pid_x(-(goal_pos.x))
-        speed.linear.y = pid_y((goal_pos.y))
+        pid_x = PID(0.7, 0.1, 0.01, setpoint=0)
+        pid_y = PID(0.5, 0.0, 0.00, setpoint=0)
+        # pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
+        # pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
+
+
+        if True:
+            speed.linear.x = pid_x(-(goal_pos.x))*0.5   # since the camera calibration is wrong  
+            speed.linear.y = pid_y((goal_pos.y))*0.5    # since the camera calibration is wrong
+            pid_2 = PID(0.4, 0.15, 0.01, setpoint=0)           ### my second PID controller
+            speed.linear.x = pid_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
+            speed.linear.y = pid_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
+
+        if False:
+            speed.linear.x = pid_x(-(goal_pos.z))*0.5   # since the camera calibration is wrong  
+            speed.linear.y = pid_y((goal_pos.y))*0.5    # since the camera calibration is wrong
+
         # speed.linear.z = pid_z(-(goal_pos.z - 0.30)) # sign and distance need to be checked 
         speed.angular.z = 0
         publish_speed_to_drone(speed)
-        if (goal_pos.x < 0.1 and goal_pos.y < 0.1):
+        if (abs(goal_pos.x) < 0.10 and abs(goal_pos.y) < 0.10 and goal_pos.x != 0): #  goal_pos.x != 0 is just for testing
             state_of_operation = 8
     ######################### end State 5 ##############################
 
     ######################### State 8 ##############################
     if state_of_operation == 8:
-        print("Landing ")
+        # print("Landing ")
         pub_land.publish(Empty_)
     ######################### end State 8 ##############################
 
@@ -393,7 +410,7 @@ def main():
     # global state_of_operation
     global timer_marker
     time.sleep(0.5)
-    # pub_takeoff.publish(Empty_)
+    pub_takeoff.publish(Empty_)
     time.sleep(2.5)
 
     rospy.Subscriber("/bebop/odom", Odometry, main_algorithm, queue_size=1)     # main function (state machine)

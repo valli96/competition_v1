@@ -4,9 +4,11 @@
 
 - [x] fix camera rotation
 - [x] look that the transformation tree exist
+- [x] add new marker script for the competition marker 
 - [] implement the landing proses **state 5 & state 8**
 - [] read drone_pos from opto-track
 - [] implement velocity function based on 2 sources **function 1 in .svg**
+- [] display the velocity calculated before in the graph and display it
 - [] implement **function 2**
 - [] implement detection of marker stopt 
 - [] combine following and landing by implementing  **state 3**
@@ -19,6 +21,7 @@
 ### nice to have
 - [] implement **state 7**
 - [] change into main into a class
+- [] remove all spelling errors
 
 
 ## Use opto-track 

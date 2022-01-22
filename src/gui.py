@@ -252,6 +252,9 @@ def marker_detection():
         # print("hich bin nummer 2")
         sub.call(['gnome-terminal', '-e', 'roslaunch ar_track_alvar my_simulation.launch'])
 
+def marker_detection_competition():
+        sub.call(['gnome-terminal', '-e', 'roslaunch ar_track_alvar my_competition.launch'])
+
 
 
 tk.Button(master=frm_tool, text="roscore", command=lambda: sub.call(['gnome-terminal', '-e', 'roscore'])).pack(side=tk.LEFT)
@@ -262,7 +265,10 @@ tk.Button(master=frm_tool, text="run ros bag", command=lambda: sub.call(['gnome-
 tk.Button(master=frm_tool, text="start Gazebo simulation", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch sjtu_drone ardrone_simulation.launch'])).pack(side=tk.LEFT)
 
 tk.Button(master=frm_main_run, text="connect drone", command=lambda: sub.call(['gnome-terminal', '-e', 'roslaunch bebop_driver bebop_node.launch'])).pack(side=tk.LEFT)
-tk.Button(master=frm_main_run, text="run marker detection", command=marker_detection).pack(side=tk.LEFT)
+tk.Button(master=frm_main_run, text="run marker detection\ntest", command=marker_detection).pack(side=tk.LEFT)
+tk.Button(master=frm_main_run, text="run marker detection\ncompetition ", command=marker_detection_competition).pack(side=tk.LEFT)
+# tk.Button(master=frm_main_run, text="run marker detection\ncompetition ", command=marker_detection_competition).pack(side=tk.LEFT)
+
 tk.Button(master=frm_main_run, text="run main script", command=run_script, bg="green", fg="white").pack(side=tk.LEFT)
 
 
@@ -362,7 +368,7 @@ def update_state():
 
             state_canvas_land.itemconfig(my_oval4, fill="")
             state_canvas_land.itemconfig(my_oval5, fill="")
-            state_canvas_land.itemconfig(my_oval8, fill="green")
+            state_canvas_land.itemconfig(my_oval8, fill="red")
         ## update cancas
         root.update()
 
