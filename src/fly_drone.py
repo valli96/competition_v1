@@ -2,6 +2,7 @@
 
 ## ros related imports
 # from tkinter.tix import Tree
+from multiprocessing import log_to_stderr
 from turtle import distance
 # from gui import marker_detection
 import rospy
@@ -36,7 +37,7 @@ goal_pos = Point()
 Empty_ = Empty()
 speed = Twist()
 
-
+marker_visible_stage_2 = False
 
 current_Odom = Odometry()
 
@@ -110,28 +111,25 @@ last_side_marker = "left"  #  left or right are possible
 current_velocities = [0,0,0]
 
 
-def callback(msg):
+# def callback(msg):
 
-    '''
-    this function is used for debugging in moving the drone to arbitrary positions
-    the first iteration of algorithm don't the the postion of the drone!  
+#     '''
+#     this function is used for debugging in moving the drone to arbitrary positions
+#     the first iteration of algorithm don't the the postion of the drone!  
 
-    '''
-    global first_run
-    global initial_odom
-    global initial_angel
-    global custom_x
-    global custom_y
-    global custom_height
-    global custom_angel
-    global yaw_marker
-    global state_of_operation
-    global pose_drone
-    global pose_jackal
-    global pose_difference
+#     '''
+#     global first_run
+#     global initial_odom
+#     global initial_angel
+#     global custom_x
+#     global custom_y
+#     global custom_height
+#     global custom_angel
+#     global yaw_marker
+#     global state_of_operation
+#     global pose_drone
 
-
-    if state_of_operation == 2:
+    # if state_of_operation == 2:
         
         ################################################################################
         ############ this was based on the odom topic of the drone
@@ -175,16 +173,16 @@ def callback(msg):
         ############ this was based on the pose value from opto-track
         ################################################################################
 
-        pose_difference.position.x = pose_jackal.position.x - pose_drone.position.x
-        pose_difference.position.y = pose_jackal.position.y - pose_drone.position.y
-        pose_difference.position.z = pose_jackal.position.z - pose_drone.position.z 
+        # pose_difference.position.x = pose_jackal.position.x - pose_drone.position.x
+        # pose_difference.position.y = pose_jackal.position.y - pose_drone.position.y
+        # pose_difference.position.z = pose_jackal.position.z - pose_drone.position.z 
 
 
 
-def custom_command(msg):
-    global custom_height
-    custom_height = msg.data/100
-    print("The new Target height is !!! :  " + str(custom_height))
+# def custom_command(msg):
+#     global custom_height
+#     custom_height = msg.data/100
+#     print("The new Target height is !!! :  " + str(custom_height))
     
 
 def look_for_marker():
@@ -196,6 +194,7 @@ def look_for_marker():
     global last_side_marker
     global state_of_operation
     global marker_visible
+    global marker_detected_stage_2
 
     marker_visible = False
     pos_data = genfromtxt('goal_pos.csv', delimiter=',')
@@ -210,11 +209,15 @@ def look_for_marker():
         state_of_operation = 1  
         # state_of_operation = 4
 
-    if state_of_operation == 5:
+    if state_of_operation == 5 and  marker_detected_stage_2 == False:
         state_of_operation = 6
 
+    if state_of_operation == 5 and  marker_detected_stage_2 == True:
+        state_of_operation = 7
 
-def get_maker_pos_2(msg):
+
+
+def get_maker_pose(msg):
     if msg.markers:
         # print("I see the the marker")
         global diff_ang
@@ -223,15 +226,19 @@ def get_maker_pos_2(msg):
         global goal_pos
         global yaw_marker
         global marker_visible
+        global marker_detected_stage_2
 
         marker_visible = True
 
-        # if state_of_operation == 1 and abs(goal_pos.y) < 0.5:
+        # marker find in first stage (following)
         if state_of_operation == 1 or state_of_operation == 0:
             state_of_operation = 2 
 
+        # marker find in seconde stage (landing)
         if state_of_operation == 6 or state_of_operation == 7 or state_of_operation == 4:
             state_of_operation = 5
+            marker_detected_stage_2 = True
+
         ######################### position ################################
         vec_pos_mark_m_space = [msg.markers[0].pose.pose.position.x,
                                 msg.markers[0].pose.pose.position.y,
@@ -264,19 +271,13 @@ def get_maker_pos_2(msg):
 
         ################ for the marker looking routine ###################
         timer_marker.cancel()
-        timer_marker = threading.Timer(1, look_for_marker)
+        timer_marker = threading.Timer(1.5, look_for_marker)
         timer_marker.start()    
         ################ for the marker looking routine ###################
         with open('goal_pos.csv', 'a') as f:
             writer = csv.writer(f)
-            writer.writerow([goal_pos.x, goal_pos.y, yaw_marker])
-    else:
-        # speed.linear.z = 0
-        # speed.linear.x = 0
-        # speed.linear.y = 0
-        # speed.angular.z = 0
-        # pub_move.publish(speed)
-        pass
+            writer.writerow([goal_pos.x, goal_pos.y, goal_pos.z])
+        
 
 # def get_pose_opto_track_drone(msg):
 #     global pose_drone
@@ -302,6 +303,7 @@ def main_algorithm(msg):
     global ground_vehicle_stopt
     global initial_odom
     global first_run
+    global marker_visible_stage_2
     ######
 
     if first_run == True:
@@ -320,6 +322,7 @@ def main_algorithm(msg):
     with open('current_state.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow([state_of_operation])
+        
     ######################### State 1 ###############################
     if state_of_operation == 1:
         # print("Looking for marker...")
@@ -370,19 +373,18 @@ def main_algorithm(msg):
             speed.linear.x = speed.linear.x = pid_x(-(goal_pos.x))*0.3 ## move in direction of marker until it is not visible any more
             speed.linear.y = pid_y((goal_pos.y))
             speed.angular.z = pid_rot(goal_pos.y)
-
             publish_speed_to_drone(speed)
 
         ## move torwards the marker without feedback.  Speed and time need to be tuned 
-        if marker_visible == True:
+        if marker_visible == False:
             speed.linear.x = 0.1
             speed.linear.y = 0
             speed.angular.z = 0
             time.sleep(2)
+            state_of_operation == 4
 
         ## moving without visual feedback use feedback by integrating the velocity values over time
         ## implementation with opto-track !!!
-
     ######################### end State 3 ##############################
 
     ######################### State 4 ##############################
@@ -422,6 +424,8 @@ def main_algorithm(msg):
         # speed.linear.z = pid_z(-(goal_pos.z - 0.30)) # sign and distance need to be checked 
         speed.angular.z = 0
         publish_speed_to_drone(speed)
+           
+
         if (abs(goal_pos.x) < 0.10 and abs(goal_pos.y) < 0.10 and goal_pos.z < 0.5  and goal_pos.x != 0): #  goal_pos.x != 0 is just for testing
             state_of_operation = 8
     ######################### end State 5 ##############################
@@ -432,9 +436,20 @@ def main_algorithm(msg):
         speed.linear.x = 0
         speed.linear.y = 0
         speed.angular.z = 0
-        speed.linear.z = pid_z((msg.pose.pose.postion.z - initial_odomp[2]) - 2)
+        speed.linear.z = pid_z((msg.pose.pose.postion.z - initial_odom[2]) - 2) ## goes to 2 m
         publish_speed_to_drone(speed)
     ######################### end State 6 ##############################
+    
+    ######################### State 7 ##############################
+    if state_of_operation == 7:
+        ## move up for some random time 
+        # go in the direction of the last know position 
+        last_pose_marker = genfromtxt('goal_pos.csv', delimiter=',')
+        speed.linear.x = pid_x(-last_pose_marker) 
+        speed.linear.y = pid_y(last_pose_marker)
+
+        publish_speed_to_drone(speed)
+    ######################### end State 7 ##############################
 
     ######################### State 8 ##############################
     if state_of_operation == 8:
@@ -451,8 +466,8 @@ def main():
     time.sleep(2.5)
 
     rospy.Subscriber("/bebop/odom", Odometry, main_algorithm, queue_size=1)     # main function (state machine)
-    rospy.Subscriber("/ar_pose_marker", AlvarMarkers, get_maker_pos_2, queue_size=1)  # get marker position
-    rospy.Subscriber("/bebop/states/ardrone3/PilotingState/SpeedChanged", Ardrone3PilotingStateSpeedChanged, get_current_velocities, queue_size=1)
+    rospy.Subscriber("/ar_pose_marker", AlvarMarkers, get_maker_pose, queue_size=1)  # get marker position
+    rospy.Subscriber("/bebop/states/ardrone3/PilotingState/SpeedChanged", Ardrone3PilotingStateSpeedChanged, get_current_velocities, queue_size=1)  # needed for the seconde PID
 
     # rospy.Subscriber("/bebop/odom", Odometry, callback, queue_size=1)         # is used for debugging and controll the drone without the marker
     # rospy.Subscriber("/custom_command", Float32, custom_command, queue_size=1)  # resice and handels commands from the UI
@@ -481,7 +496,6 @@ def myhook():
 
 rospy.on_shutdown(myhook)
 ##################### if the process is killed ##########################################
-
 
 
 if __name__ == '__main__':
