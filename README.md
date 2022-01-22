@@ -6,7 +6,15 @@
 - [x] look that the transformation tree exist
 - [x] add new marker script for the competition marker 
 - [x] implement **state 8**
+- [ ] try to run the code
+- [ ] tune PID controller for height
+- [ ] check if stage 0 to 2 works fine
+      - [ ] 3 successful following
+      - [ ] find good height for the upper marker
 
+
+
+- [ ] PID controller for rotation 
 - [ ] implement the landing proses **state 5** 
       - [ ] tune the PID controller for this stage (try to uses velocity) 
       - [ ] use different drones
@@ -14,9 +22,6 @@
       - [ ] have 3 successfully on the marker 
       - [ ] have 3 successful test on the ground vehicle
 
-- [ ] check if stage 0 to 4 works fine
-      - [ ] 3 successful following
-      - [ ] find good height for the upper marker
 
 - [ ] read drone_pos from opto-track
 - [ ] implement velocity function based on 2 sources **function 1 in .svg**

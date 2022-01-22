@@ -284,7 +284,7 @@ def get_maker_pose(msg):
 
         ################ for the marker looking routine ###################
         timer_marker.cancel()
-        timer_marker = threading.Timer(1.5, look_for_marker)
+        timer_marker = threading.Timer(0.5, look_for_marker)
         timer_marker.start()    
         ################ for the marker looking routine ###################
         with open('goal_pos.csv', 'a') as f:
@@ -366,22 +366,22 @@ def main_algorithm(msg):
     ######################### State 2 ###############################
     if state_of_operation == 2:
 
-        pid_x = PID(0.3, 0.04, 0.01, setpoint=0)
-        pid_y = PID(0.2, 0.0, 0.00, setpoint=0)    
-        # pid_z = PID(0.05, 0.01, 0.05, setpoint=0)
-        # pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
+        pid_x = PID(0.7, 0.1, 0.0, setpoint=0)
+        pid_y = PID(0.05, 0.0, 0.00, setpoint=0)    
+        pid_z = PID(0.05, 0.01, 0.05, setpoint=0)
+        # pid_rot = PID(0.4, 0.02, 0.00, setpoint=0)
 
-        # speed.linear.x = pid_x(-(goal_pos.x - 1.5))
-        speed.linear.y = pid_y(-(goal_pos.y))
+        speed.linear.x = pid_x(-(goal_pos.x - 1.5))
+        speed.linear.y = pid_y((goal_pos.y))
         # speed.linear.z = 0
         # speed.angular.z = pid_rot(diff_ang)
 
         print("Speed before second pid"+  str(speed.linear.x))
-        pid_x_2 = PID(2, 0.15, 0.01, setpoint=0)           ### my second PID controller
-        pid_y_2 = PID(0.5, 0.05, 0.01, setpoint=0)           ### my second PID controller
-        # speed.linear.x = pid_x_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
-        speed.linear.y = pid_y_2((speed.linear.y - current_velocities[1]))
-        print("Speed after second pid"+  str(speed.linear.x))
+        pid_x_2 = PID(0.3, 0.15, 0.01, setpoint=0)           ### my second PID controller
+        # pid_y_2 = PID(0.5, 0.05, 0.01, setpoint=0)           ### my second PID controller
+        speed.linear.x = pid_x_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
+        # speed.linear.y = pid_y_2((speed.linear.y - current_velocities[1]))
+        # print("Speed after second pid"+  str(speed.linear.x))
         # speed.linear.x = 0
         # speed.linear.y = 0
         speed.linear.z = 0

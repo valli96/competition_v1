@@ -71,7 +71,7 @@ def plotter():
                 ax2[2].clear()
                 ax2[2].plot(data[2:,2])
                 ax2[2].plot(height_val_vec/100, 'r--', linewidth=1)
-                ax2[2].set_title("yaw of the marker")
+                ax2[2].set_title("z of the marker")
             # canvas = FigureCanvasTkAgg(plot2, master=root)  # A tk.DrawingArea.
 
             if var_plot.get() == 2:         
@@ -367,7 +367,7 @@ def update_state():
             state_canvas_land.itemconfig(my_oval7, fill="")
             state_canvas_land.itemconfig(my_oval8, fill="")
 
-        if current_state == 8:   # landing 
+        if current_state == 7:   # landing 
             state_canvas_follow.itemconfig(my_oval0, fill="")
             state_canvas_follow.itemconfig(my_oval1, fill="")
             state_canvas_follow.itemconfig(my_oval2, fill="")
@@ -398,6 +398,7 @@ tk.Button(master=frm_drone_controll, text="stop drone", command=lambda: sub.call
 # tk.Button(master=frm_drone_controll, text="rotate camera \n forwad", command=lambda: sub.call(['rostopic pub /bebop/camera_control geometry_msgs/Twist "linear:\ x: 0.0\ y: 0.0\ z: 0.0\angular:\ x: 0.0\ y: 0.0\ z: 0.0"'])).pack(side=tk.LEFT)
 tk.Button(master=frm_drone_controll, text="rotate camera \n down", command=lambda: sub.call(['gnome-terminal', '-e', 'rostopic pub -1 /bebop/camera_control geometry_msgs/Twist -f /home/valentin/camera_rotation_down.yaml'])).pack(side=tk.LEFT)
 tk.Button(master=frm_drone_controll, text="rotate camera \n forward", command=lambda: sub.call(['gnome-terminal', '-e', 'rostopic pub -1 /bebop/camera_control geometry_msgs/Twist -f /home/valentin/camera_rotation_forward.yaml'])).pack(side=tk.LEFT)
+tk.Button(master=frm_drone_controll, text="rotate camera \n -20", command=lambda: sub.call(['gnome-terminal', '-e', 'rostopic pub -1 /bebop/camera_control geometry_msgs/Twist -f /home/valentin/camera_rotation_20.yaml'])).pack(side=tk.LEFT)
 
 # rostopic pub /bebop/camera_control geometry_msgs/Twist -f rotation_forwar.yaml
 tk.Button(master=frm_drone_controll, text="Drone Take off",  command=drone_take_off, bg="green", fg="white").pack(side=tk.LEFT)
