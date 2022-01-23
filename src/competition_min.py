@@ -1,11 +1,7 @@
-
-from xml.etree.ElementInclude import include
-
-import rospy
-
 #!/usr/bin/env python2.7
 
 ## ros import
+from tkinter.tix import Tree
 import rospy
 from geometry_msgs.msg import Pose, Twist, Point
 from nav_msgs.msg import Odometry
@@ -44,7 +40,7 @@ state_of_operation = 0 # 0 starting Drone
 marker_visible = False
 ground_vehicle_stopped = False
 target_height_reached = False
-first_run_target_height = False
+first_run_target_height = 0
 last_side_marker = "left"
 first_time_state_10 = True
 
@@ -57,35 +53,43 @@ pose_marker_accurate = [0,0,0]
 current_velocities = [0,0,0]
 initial_odom = [0,0,0]
 actual_drone_pose = [0,0,0]
-target_height = 1.7
+target_height = 1.1
 speed_limit = 0.5
 
 
-rospy.init_node("speed_controller")
+rospy.init_node("controll_drone")
 
-Empty_ = Empty()
-camera_controll = rospy.Publisher("/bebop/camera_control", Twist, queue_size=1)
 pub_takeoff = rospy.Publisher("bebop/takeoff", Empty, queue_size=1)
-pub_move = rospy.Publisher("bebop/cmd_vel", Twist, queue_size=1)
 pub_land = rospy.Publisher("/bebop/land", Empty, queue_size=1)
 
+camera_controll = rospy.Publisher("/bebop/camera_control", Twist, queue_size=1)
+pub_move = rospy.Publisher("bebop/cmd_vel", Twist, queue_size=1)
+Empty_ = Empty()
 
-pid_x_fast = PID(0.7,0.15,0, setpoint=0)
-pid_y_fast = PID(0.3,0,0, setpoint=0)
-pid_z_fast = PID(0.5,0.15,0, setpoint=0)
-pid_rot_fast = PID(0.5,0.15,0, setpoint=0)
+pid_x_fast = PID(0.7,0.15,0, setpoint=0, sample_time=0.01)
+pid_y_fast = PID(0.3,0,0, setpoint=0, sample_time=0.01)
+pid_z_fast = PID(0.4,0.15,0, setpoint=0, sample_time=0.01)
+pid_rot_fast = PID(0.5,0.15,0, setpoint=0, sample_time=0.01)
 
-pid_x_slow = PID(1,0,0, setpoint=0) 
-pid_y_slow = PID(1,0,0, setpoint=0) 
-pid_z_slow = PID(1,0,0, setpoint=0)
-pid_rot_slow = PID(0.5,0.15,0, setpoint=0)
+pid_x_slow = PID(1,0,0, setpoint=0, sample_time=0.01) 
+pid_y_slow = PID(1,0,0, setpoint=0, sample_time=0.01) 
+pid_z_slow = PID(0.1,0,0, setpoint=0, sample_time=0.01)
+pid_rot_slow = PID(0.5,0.15,0, setpoint=0, sample_time=0.01)
 
-pid_x_2 = PID(1,0,0, setpoint=0) 
-pid_y_2 = PID(1,0,0, setpoint=0) 
-pid_z_2 = PID(1,0,0, setpoint=0)
+pid_x_2 = PID(1,0,0, setpoint=0, sample_time=0.01) 
+pid_y_2 = PID(1,0,0, setpoint=0, sample_time=0.01) 
+pid_z_2 = PID(1,0,0, setpoint=0, sample_time=0.01)
 
 
-def publish_speed_to_drone():
+def publish_speed_to_drone(speed):
+    global state_of_operation 
+
+    if state_of_operation == 12:
+        speed.linear.x = 0
+        speed.linear.y = 0
+        speed.linear.z = 0
+        speed.angular.z = 0
+
     if abs(speed.linear.x) > speed_limit:
         speed.linear.x = 0
     if abs(speed.linear.y)> speed_limit:
@@ -94,8 +98,10 @@ def publish_speed_to_drone():
         speed.linear.y = 0
     if abs(speed.angular.z) > speed_limit:
         speed.angular.z = 0
+    if state_of_operation != 12:
+        # pub_move.publish(speed)
+        pass
 
-    pub_move.publish(speed)
 
 
 def get_maker_pose(msg):
@@ -179,34 +185,25 @@ def move_target_height(msg):
     global initial_odom
     global target_height
  
-    if first_run_target_height == True:
+    if first_run_target_height == 4:
         initial_odom = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
-        first_run_target_height = False
+        # first_run_target_height = first_run_target_height + 1
+    first_run_target_height = first_run_target_height + 1
 
     if target_height_reached == False:
-        speed.linear.z = pid_z_fast(-((msg.pose.pose.position.x-initial_odom[0]) - target_height))
+        speed.linear.z = pid_z_fast(((msg.pose.pose.position.z-initial_odom[2]) - target_height))
         speed.linear.x = 0
         speed.linear.y = 0
         speed.angular.z = 0
+
+        if abs((msg.pose.pose.position.z-initial_odom[2]) - target_height) < 0.2:
+            target_height_reached = True
+        print("bothe:  " + str((msg.pose.pose.position.z-initial_odom[2])))
+        print("inside: "+ str(((msg.pose.pose.position.z-initial_odom[2]) - target_height)))
+        print("speed:  " + str((speed.linear.z)))
+
+
         publish_speed_to_drone(speed)
-
-
-
-##################### if the process is killed ##########################################
-def myhook():
-    global state_of_operation
-    pub_land.publish(Empty_)
-    print("shutdown time!")
-    speed.linear.x = 0
-    speed.linear.y = 0
-    speed.linear.z = 0
-    pub_move.publish(speed)
-    state_of_operation = 8
-    time.sleep(2)
-    print("program aborted drone will land")
-
-rospy.on_shutdown(myhook)
-##################### if the process is killed ##########################################
 
 #######################################################################################
 #######################################################################################
@@ -216,6 +213,9 @@ def main_algorithm(msg):
     global last_side_marker
     global first_time_state_10
     global pose_marker_accurate
+    global pid_x_fast, pid_y_fast, pid_z_fast
+    global pid_x_slow, pid_y_slow, pid_z_slow
+    global pid_x_2, pid_y_2, pid_z_2
 
     with open('velocity_drone.csv', 'a') as f:
         writer = csv.writer(f)
@@ -243,69 +243,88 @@ def main_algorithm(msg):
 ######################### State 1 ###############################
 
 ######################### State 2 ###############################
-    if state_of_operation == 2:
-        speed.linear.x = pid_x_fast(-(marker_position.x - 2))
-        speed.linear.y = pid_y_fast(-(marker_position.y))
-        speed.linear.z = 0
-        speed.angular.z = pid_rot_fast(-marker_position.y)
+    # if state_of_operation == 2:
+    #     speed.linear.x = pid_x_fast(-(marker_position.x - 2))
+    #     speed.linear.y = pid_y_fast(-(marker_position.y))
+    #     speed.linear.z = 0
+    #     speed.angular.z = pid_rot_fast(-marker_position.y)
 
-        speed.linear.x = pid_x_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
-        speed.linear.y = pid_y_2((speed.linear.y - current_velocities[1]))
-        speed.linear.z = 0
+    #     speed.linear.x = pid_x_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
+    #     speed.linear.y = pid_y_2((speed.linear.y - current_velocities[1]))
+    #     speed.linear.z = 0
 
-        publish_speed_to_drone(speed)
+    #     publish_speed_to_drone(speed)
 
-        detect_ground_vehicle_stop()  ### also returns exact position
+    #     detect_ground_vehicle_stop()  ### also returns exact position
 
-        if (ground_vehicle_stopped == True and marker_position.x < 1.5 and marker_position.y < 0.3):
-            state_of_operation = 10
-            print("Ich bin hier")
-            pub_land.publish(Empty_)
+    #     if (ground_vehicle_stopped == True and marker_position.x < 1.5 and marker_position.y < 0.3):
+    #         state_of_operation = 10
+    #         # pub_land.publish(Empty_)
 ######################### State 2 ###############################
 
 ######################### State 10 ###############################
-    if state_of_operation == 10:
-        if first_time_state_10 == True:
-            actual_drone_pose[0] = msg.pose.pose.position.x
-            actual_drone_pose[1] = msg.pose.pose.position.y
-            actual_drone_pose[2] = msg.pose.pose.position.z
-            first_time_state_10 = False
+    # if state_of_operation == 10:
+    #     if first_time_state_10 == True:
+    #         actual_drone_pose[0] = msg.pose.pose.position.x
+    #         actual_drone_pose[1] = msg.pose.pose.position.y
+    #         actual_drone_pose[2] = msg.pose.pose.position.z
+    #         first_time_state_10 = False
 
 
-        speed.linear.x = pid_x_slow(-(msg.pose.pose.position.x-actual_drone_pose[0])- pose_marker_accurate[0])
-        # speed.linear.y = pid_y_(-(pose_marker_accurate))
-        speed.linear.y = 0
-        speed.angular.z = pid_rot_slow(-pose_marker_accurate[1])
+    #     speed.linear.x = pid_x_slow(-(msg.pose.pose.position.x-actual_drone_pose[0])- pose_marker_accurate[0])
+    #     # speed.linear.y = pid_y_(-(pose_marker_accurate))
+    #     speed.linear.y = 0
+    #     speed.angular.z = pid_rot_slow(-pose_marker_accurate[1])
 
-        speed.linear.x = pid_x_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
-        # speed.linear.y = pid_y_2((speed.linear.y - current_velocities[1]))
-        speed.linear.z = 0
+    #     speed.linear.x = pid_x_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
+    #     # speed.linear.y = pid_y_2((speed.linear.y - current_velocities[1]))
+    #     speed.linear.z = 0
 
-        publish_speed_to_drone(speed)
-        if ((msg.pose.pose.position.x-actual_drone_pose[0])- pose_marker_accurate[0]) < 0.1:
-            state_of_operation = 8
-######################### State 3 ###############################
+    #     publish_speed_to_drone(speed)
+    #     if ((msg.pose.pose.position.x-actual_drone_pose[0])- pose_marker_accurate[0]) < 0.1:
+    #         state_of_operation = 8
+######################## State 3 ###############################
 
 #######################################################################################
 #######################################################################################
 def main():
-    # global state_of_operation
+    global state_of_operation
     global timer_marker
-
-    time.sleep(0.2)
-    pub_takeoff.publish(Empty_)
+    print("Hallo")
+    # Empty_ = Empty()
+    time.sleep(0.5)
+    # pub_takeoff.publish(Empty_)
     time.sleep(2.5)
     
-    rospy.Subscriber("/bebop/odom", Odometry, main_algorithm, queue_size=1)     # main function (state machine)
-    rospy.Subscriber("/bebop/odom", Odometry, move_target_height, queue_size=1)     # main function (state machine)
-
+    # rospy.Subscriber("/bebop/odom", Odometry, main_algorithm, queue_size=1)     # main function (state machine)
+    # rospy.Subscriber("/bebop/odom", Odometry, move_target_height, queue_size=1)     # main function (state machine)
     rospy.Subscriber("/ar_pose_marker", AlvarMarkers, get_maker_pose, queue_size=1)  # get marker position
-    rospy.Subscriber("/bebop/states/ardrone3/PilotingState/SpeedChanged", Ardrone3PilotingStateSpeedChanged, get_current_velocities, queue_size=1)  # needed for the seconde PID
 
-        
-    
+    # rospy.Subscriber("/bebop/states/ardrone3/PilotingState/SpeedChanged", Ardrone3PilotingStateSpeedChanged, get_current_velocities, queue_size=1)  # needed for the seconde PID
+
     timer_marker = threading.Timer(3,look_for_marker)  
     timer_marker.start() 
+    rospy.spin()
+
+###################### if the process is killed ##########################################
+def myhook():
+    global state_of_operation 
+    state_of_operation = 12
+    time.sleep(0.5)
+    # pub_land.publish(Empty_)
+    time.sleep(0.5)
+    print("shutdown time!")
+    speed.linear.x = 0
+    speed.linear.y = 0
+    speed.linear.z = 0 
+    state_of_operation = 12
+    # pub_move.publish(speed)
+    print("program aborted drone will land")
+    pub_land.publish(Empty_)
+    time.sleep(3)
+
+rospy.on_shutdown(myhook)
+##################### if the process is killed ##########################################
 
 
 if __name__ == '__main__':

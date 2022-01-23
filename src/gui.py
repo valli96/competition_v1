@@ -270,6 +270,7 @@ tk.Button(master=frm_main_run, text="run marker detection\ncompetition ", comman
 # tk.Button(master=frm_main_run, text="run marker detection\ncompetition ", command=marker_detection_competition).pack(side=tk.LEFT)
 
 tk.Button(master=frm_main_run, text="run main script", command=run_script, bg="green", fg="white").pack(side=tk.LEFT)
+tk.Button(master=frm_main_run, text="run minimal script", command=lambda: sub.call(['gnome-terminal', '-x','python2.7', '/home/valentin/catkin_ws/src/competition_v1/src/competition_min.py']), bg="pink", fg="white").pack(side=tk.LEFT)
 
 
 frm_source_choice = tk.Frame(master=frm_tool, relief=tk.RIDGE, borderwidth=3)

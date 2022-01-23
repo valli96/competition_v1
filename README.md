@@ -6,6 +6,12 @@
 - [x] look that the transformation tree exist
 - [x] add new marker script for the competition marker 
 - [x] implement **state 8**
+
+
+- [x] the the problem with the height
+ 
+
+
 - [ ] try to run the code
 - [ ] tune PID controller for height
 - [ ] check if stage 0 to 2 works fine
