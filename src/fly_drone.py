@@ -6,6 +6,7 @@
 # from gui import marker_detection
 # from multiprocessing import log_to_stderr
 # from turtle import distance
+# from asyncio import sleep
 import rospy
 from geometry_msgs.msg import Pose, Twist, Point
 from nav_msgs.msg import Odometry
@@ -46,8 +47,10 @@ state_of_operation = 0 # 0 starting Drone
 # if True jump to state 10
 # if False jump to state 3
 land_without_visual_feedback = True
-pose_drone_accurate = [0,0,0]
+pose_marker_accurate = [0,0,0]
+actual_drone_pose = [0,0,0]
 
+first_time_10 = True
 
 goal_pos = Point()
 Empty_ = Empty()
@@ -64,7 +67,9 @@ pose_drone = Pose()
 marker_visible = False
 camera_direction = Twist()
 marker_detected_stage_2 = False
+first_run_target_height = True
 
+target_height_reached = False
 
 rospy.init_node("speed_controller")
 
@@ -78,19 +83,19 @@ pub_land = rospy.Publisher("/bebop/land", Empty, queue_size=1)
 
 #########################################################################################
 def publish_speed_to_drone(speed):
-    if abs(speed.linear.x) > speed_limit:
-        speed.linear.x = np.sign(speed.linear.x)* speed_limit
+    # if abs(speed.linear.x) > speed_limit:
+    #     speed.linear.x = np.sign(speed.linear.x)* speed_limit
+    # if abs(speed.linear.y)> speed_limit:
+    #     speed.linear.y = np.sign(speed.linear.y)* speed_limit
 
-    if abs(speed.linear.y)> speed_limit:
-        speed.linear.y = np.sign(speed.linear.y)* speed_limit
+    # if abs(speed.linear.z) > speed_limit:
+    #     speed.linear.z = np.sign(speed.linear.z)* speed_limit
 
-    if abs(speed.linear.z) > speed_limit:
-        speed.linear.z = np.sign(speed.linear.z)* speed_limit
-
-    if abs(speed.angular.z) > speed_limit:
-        speed.angular.z = np.sign(speed.angular.z)* speed_limit
+    # if abs(speed.angular.z) > speed_limit:
+    #     speed.angular.z = np.sign(speed.angular.z)* speed_limit
 
     pub_move.publish(speed)
+    pass
 #########################################################################################
 
 # def diff_angels(x, y):
@@ -101,10 +106,10 @@ def publish_speed_to_drone(speed):
 #     b = (y - x) % (math.pi*2)
 #     return -a if a < b else b
 
-pid_x = PID(0.7, 0.1, 0.01, setpoint=0)
-pid_y = PID(0.05, 0.0, 0.00, setpoint=0)    
-pid_z = PID(0.05, 0.01, 0.05, setpoint=0)
-pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
+# pid_x = PID(0.7, 0.1, 0.01, setpoint=0)
+# pid_y = PID(0.05, 0.0, 0.00, setpoint=0)    
+# pid_z = PID(0.05, 0.01, 0.05, setpoint=0)
+# pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
 
 ground_vehicle_stopped = False
 
@@ -141,6 +146,8 @@ current_velocities = [0,0,0]
 #     global yaw_marker
 #     global state_of_operation
 #     global pose_drone
+
+
 
     # if state_of_operation == 2:
         
@@ -244,7 +251,7 @@ def get_maker_pose(msg):
         marker_visible = True
 
         # marker find in first stage (following)
-        if state_of_operation == 1 or state_of_operation == 0:
+        if state_of_operation == 1 or state_of_operation == 0 and target_height_reached == True:
             state_of_operation = 2 
 
         # marker find in seconde stage (landing)
@@ -284,7 +291,7 @@ def get_maker_pose(msg):
 
         ################ for the marker looking routine ###################
         timer_marker.cancel()
-        timer_marker = threading.Timer(0.5, look_for_marker)
+        timer_marker = threading.Timer(1.5, look_for_marker)
         timer_marker.start()    
         ################ for the marker looking routine ###################
         with open('goal_pos.csv', 'a') as f:
@@ -304,14 +311,19 @@ def get_current_velocities(msg):
 
 def detect_ground_vehicle_stop():
     global ground_vehicle_stopped
-    if state_of_operation == 2:
-        pos_data = genfromtxt('goal_pos.csv', delimiter=',')
-        average_x = sum(abs(pos_data[0,:-20]))
-        average_y = sum(abs(pos_data[0,:-20]))
+    while True:
+        if state_of_operation == 2:
+            time.sleep(2)
+            try:
+                ### detecting based on moving obstical
+                pos_data = genfromtxt('goal_pos.csv', delimiter=',')
+                average_x = sum(abs(pos_data[0,:-10]))
+                average_y = sum(abs(pos_data[0,:-10]))
+            except:
+                print("the files is to small")
 
-
-        if (average_x < 10 and average_y < 10):
-            ground_vehicle_stopped = True
+                if (average_x < 10 and average_y < 10):
+                    ground_vehicle_stopped = True
 
 
 def main_algorithm(msg):
@@ -322,12 +334,16 @@ def main_algorithm(msg):
     global goal_pos
     global last_side_marker
     global current_velocities
-    global pid_x, pid_y, pid_z
+    # global pid_x, pid_y, pid_z
     global ground_vehicle_stopped
     global initial_odom
     global first_run
     global marker_visible_stage_2
-    global pose_drone_accurate 
+    global pose_marker_accurate 
+    global target_height_reached
+    global first_time_10
+
+    global timer_ground_vehicle_stops
     ######
 
     if first_run == True:
@@ -350,10 +366,24 @@ def main_algorithm(msg):
     ######################### State 1 ###############################
     if state_of_operation == 1:
         # print("Looking for marker...")
-        
+        pid_z = PID(0.3, 0.02, 0.00, setpoint=0)
+        pid_x_2 = PID(1.0, 0.15, 0.0, setpoint=0)           ### my second PID controller
+        pid_y_2 = PID(1, 0.15, 0.0, setpoint=0)           ### my second PID controller
+        if(msg.pose.pose.position.z > 1.5):
+            target_height_reached = True
+            speed.linear.z = 0
+        else:
+            speed.linear.z = pid_z(+(msg.pose.pose.position.z - 1.6))
+
         speed.linear.x = 0
         speed.linear.y = 0
-        speed.linear.z = 0
+        # speed.linear.z = 0
+        
+        # speed.linear.x = pid_x_2(-(0- current_velocities[0]))  ### my second PID controller
+        # speed.linear.y = pid_y_2(-(0 - current_velocities[1]))  ### my second PID controller
+        
+        print(msg.pose.pose.position.z)
+        
         if last_side_marker == "right":
                speed.angular.z = -0.2
 
@@ -366,33 +396,24 @@ def main_algorithm(msg):
     ######################### State 2 ###############################
     if state_of_operation == 2:
 
-        pid_x = PID(0.7, 0.1, 0.0, setpoint=0)
-        pid_y = PID(0.05, 0.0, 0.00, setpoint=0)    
-        pid_z = PID(0.05, 0.01, 0.05, setpoint=0)
-        # pid_rot = PID(0.4, 0.02, 0.00, setpoint=0)
+        pid_x = PID(0.5, 0.1, 0.01, setpoint=0)
+        pid_y = PID(0.2, 0.0, 0.00, setpoint=0)    
+        pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
+        pid_rot = PID(0.4, 0.02, 0.00, setpoint=0)
 
-        speed.linear.x = pid_x(-(goal_pos.x - 1.5))
-        speed.linear.y = pid_y((goal_pos.y))
-        # speed.linear.z = 0
-        # speed.angular.z = pid_rot(diff_ang)
+        speed.linear.x = pid_x(-(goal_pos.x - 2))
+        # speed.linear.y = pid_y((goal_pos.y))
 
-        print("Speed before second pid"+  str(speed.linear.x))
-        pid_x_2 = PID(0.3, 0.15, 0.01, setpoint=0)           ### my second PID controller
-        # pid_y_2 = PID(0.5, 0.05, 0.01, setpoint=0)           ### my second PID controller
+        pid_x_2 = PID(1.5, 0.15, 0.0, setpoint=0)           ### second PID controller
+        pid_y_2 = PID(0.5, 0.05, 0.01, setpoint=0)          ### second PID controller
         speed.linear.x = pid_x_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
-        # speed.linear.y = pid_y_2((speed.linear.y - current_velocities[1]))
-        # print("Speed after second pid"+  str(speed.linear.x))
-        # speed.linear.x = 0
-        # speed.linear.y = 0
+        speed.linear.y = pid_y_2((speed.linear.y - current_velocities[1]))
         speed.linear.z = 0
-        # speed.angular.z = 0
-        # speed.angular.z = pid_rot(goal_pos.y)
 
         publish_speed_to_drone(speed)
 
-        # timer_ground_vehicle_stops = threading.Timer(3,detect_ground_vehicle_stop) # wait 5 seconds before starting to look for the marker 
-        # timer_marker.start() #velocities
-
+        timer_ground_vehicle_stops = threading.Timer(3,detect_ground_vehicle_stop) # wait 5 seconds before starting to look for the marker 
+        timer_ground_vehicle_stops.start() #velocities
 
     ### assumption ground vehicle has stopt 
         if (ground_vehicle_stopped == True and goal_pos.x < 1.5 and goal_pos.y < 0.3): # 
@@ -402,126 +423,165 @@ def main_algorithm(msg):
 
     ######################### end State 2 ##############################
 
-    ######################### State 3 ##############################
-    if state_of_operation == 3:
-        if marker_visible == True:
-            speed.linear.x = speed.linear.x = pid_x(-(goal_pos.x))*0.3 ## move in direction of marker until it is not visible any more
-            speed.linear.y = pid_y((goal_pos.y))
-            speed.angular.z = pid_rot(goal_pos.y)
-            publish_speed_to_drone(speed)
+    ######################### State 10 ##############################
+    if state_of_operation == 10:
+        
+        if first_time_10 == True:
+            pose_marker_accurate = get_accurate_ground_vehicle_pose()
+            actual_drone_pose.x = msg.pose.pose.position.x
+            # actual_drone_pose.y = msg.pose.pose.position.y
+            # actual_drone_pose.z = msg.pose.pose.position.z
+            first_time_10 = False
 
-        ## move torwards the marker without feedback.  Speed and time need to be tuned 
-        if marker_visible == False:
-            speed.linear.x = 0.1
-            speed.linear.y = 0
-            speed.angular.z = 0
-            time.sleep(2)
-            state_of_operation == 4
+        pid_x = PID(0.1, 0.01, 0.005, setpoint=0)
+        pid_x_2 = PID(0.5, 0.1, 0.01, setpoint=0)
+
+        # pid_y = PID(0.2, 0.0, 0.00, setpoint=0)    
+        # pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
+
+        print("actual_drone_pose"+ str(actual_drone_pose.x))
+        print("pose_marker_accurate"+ str(pose_marker_accurate[0]))
+        
+        speed.linear.x = pid_x(-((msg.pose.pose.position.x - actual_drone_pose.x) - pose_marker_accurate[0] ))
+        speed.linear.x = pid_x_2(-(speed.linear.x - current_velocities[0]))
+        # speed.linear.y = pid_y( ((msg.pose.pose.position.y - actual_drone_pose.y) - pose_marker_accurate[1] ))
+        # speed.linear.z = pid_z(-((msg.pose.pose.position.z - actual_drone_pose.z) - pose_marker_accurate[2] ))
+        publish_speed_to_drone(speed)
+        if((msg.pose.pose.position.x - actual_drone_pose.x) - pose_marker_accurate[0]):
+            state_of_operation = 8
+    ######################### end State 10 ##############################
+
+    ######################### State 3 ##############################
+    # if state_of_operation == 3:
+    #     if marker_visible == True:
+    #         speed.linear.x = speed.linear.x = pid_x(-(goal_pos.x))*0.3 ## move in direction of marker until it is not visible any more
+    #         speed.linear.y = pid_y((goal_pos.y))
+    #         speed.angular.z = pid_rot(goal_pos.y)
+    #         publish_speed_to_drone(speed)
+
+    #     ## move torwards the marker without feedback.  Speed and time need to be tuned 
+    #     if marker_visible == False:
+    #         speed.linear.x = 0.1
+    #         speed.linear.y = 0
+    #         speed.angular.z = 0
+    #         time.sleep(2)
+    #         state_of_operation == 4
 
         ## moving without visual feedback use feedback by integrating the velocity values over time
         ## implementation with opto-track !!!
     ######################### end State 3 ##############################
 
     ######################### State 4 ##############################
-    if state_of_operation == 4:
-        speed.linear.x = 0
-        speed.linear.y = 0
-        speed.linear.z = 0
-        speed.angular.z = 0
-        publish_speed_to_drone(speed)
-        camera_direction.angular.y = -90
-        camera_controll.publish(camera_direction)
-        time.sleep(0.5)
-        state_of_operation = 5
+    # if state_of_operation == 4:
+    #     speed.linear.x = 0
+    #     speed.linear.y = 0
+    #     speed.linear.z = 0
+    #     speed.angular.z = 0
+    #     publish_speed_to_drone(speed)
+    #     camera_direction.angular.y = -90
+    #     camera_controll.publish(camera_direction)
+    #     time.sleep(0.5)
+    #     state_of_operation = 5
     ######################### end State 4 ##############################
 
     ######################### State 5 ##############################
-    if state_of_operation == 5:
-        pid_x = PID(0.7, 0.1, 0.01, setpoint=0)
-        pid_y = PID(0.5, 0.0, 0.00, setpoint=0)
-        # pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
-        # pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
+    # if state_of_operation == 5:
+    #     pid_x = PID(0.7, 0.1, 0.01, setpoint=0)
+    #     pid_y = PID(0.5, 0.0, 0.00, setpoint=0)
+    #     # pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
+    #     # pid_rot = PID(0.3, 0.02, 0.00, setpoint=0)
 
     # ######################################################################
     # # this next section need to be switched manually depending on the drone  
     # ######################################################################
-        if True:
-            speed.linear.x = pid_x(-(goal_pos.x))*0.5   # since the camera calibration is wrong  
-            speed.linear.y = pid_y((goal_pos.y))*0.5    # since the camera calibration is wrong
-            pid_2 = PID(0.7, 0.15, 0.01, setpoint=0)           ### my second PID controller
-            speed.linear.x = pid_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
-            speed.linear.y = pid_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
+        # if True:
+        #     speed.linear.x = pid_x(-(goal_pos.x))*0.5   # since the camera calibration is wrong  
+        #     speed.linear.y = pid_y((goal_pos.y))*0.5    # since the camera calibration is wrong
+        #     pid_2 = PID(0.7, 0.15, 0.01, setpoint=0)           ### my second PID controller
+        #     speed.linear.x = pid_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
+        #     speed.linear.y = pid_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
 
-        if False:
-            speed.linear.x = pid_x(-(goal_pos.z))*0.5   # since the camera calibration is wrong  
-            speed.linear.y = pid_y((goal_pos.y))*0.5    # since the camera calibration is wrong
+        # if False:
+        #     speed.linear.x = pid_x(-(goal_pos.z))*0.5   # since the camera calibration is wrong  
+        #     speed.linear.y = pid_y((goal_pos.y))*0.5    # since the camera calibration is wrong
 
-        # speed.linear.z = pid_z(-(goal_pos.z - 0.30)) # sign and distance need to be checked 
-        speed.angular.z = 0
-        publish_speed_to_drone(speed)
+        # # speed.linear.z = pid_z(-(goal_pos.z - 0.30)) # sign and distance need to be checked 
+        # speed.angular.z = 0
+        # publish_speed_to_drone(speed)
            
 
-        if (abs(goal_pos.x) < 0.10 and abs(goal_pos.y) < 0.10 and goal_pos.z < 0.5  and goal_pos.x != 0): #  goal_pos.x != 0 is just for testing
-            state_of_operation = 8
+        # if (abs(goal_pos.x) < 0.10 and abs(goal_pos.y) < 0.10 and goal_pos.z < 0.5  and goal_pos.x != 0): #  goal_pos.x != 0 is just for testing
+        #     state_of_operation = 8
     ######################### end State 5 ##############################
 
     ######################### State 6 ##############################
-    if state_of_operation == 6:
-        ## move up for some random time 
-        speed.linear.x = 0
-        speed.linear.y = 0
-        speed.angular.z = 0
-        speed.linear.z = pid_z((msg.pose.pose.postion.z - initial_odom[2]) - 2) ## goes to 2 m
-        # publish_speed_to_drone(speed)
+    # if state_of_operation == 6:
+    #     ## move up for some random time 
+    #     speed.linear.x = 0
+    #     speed.linear.y = 0
+    #     speed.angular.z = 0
+    #     speed.linear.z = pid_z((msg.pose.pose.postion.z - initial_odom[2]) - 2) ## goes to 2 m
+    #     # publish_speed_to_drone(speed)
     ######################### end State 6 ##############################
     
     ######################### State 7 ##############################
-    if state_of_operation == 7:
-        ## move up for some random time 
-        # go in the direction of the last know position 
-        last_pose_marker = genfromtxt('goal_pos.csv', delimiter=',')
-        speed.linear.x = pid_x(-last_pose_marker) 
-        speed.linear.y = pid_y(last_pose_marker)
+    # if state_of_operation == 7:
+    #     ## move up for some random time 
+    #     # go in the direction of the last know position 
+    #     last_pose_marker = genfromtxt('goal_pos.csv', delimiter=',')
+    #     speed.linear.x = pid_x(-last_pose_marker) 
+    #     speed.linear.y = pid_y(last_pose_marker)
 
-        publish_speed_to_drone(speed)
+    #     publish_speed_to_drone(speed)
     ######################### end State 7 ##############################
 
     ######################### State 8 ##############################
-    if state_of_operation == 8:
-        # print("Landing ")
-        pub_land.publish(Empty_)
+    # if state_of_operation == 8:
+    #     # print("Landing ")
+    #     pub_land.publish(Empty_)
     ######################### end State 8 ##############################
 
 
-    ######################### State 10 ##############################
-    if state_of_operation == 10:
-        get_accurate_ground_vehicle_pose()
-        speed.linear.x = pid_x()
-        speed.linear.y = pid_y()
-        speed.linear.z = pid_z()
-    ######################### end State 10 ##############################
+
 
 def get_accurate_ground_vehicle_pose():
-    global pose_drone_accurate 
+    global pose_marker_accurate 
     speed.linear.x = 0
     speed.linear.y = 0
     speed.linear.z = 0
     speed.angular.z = 0
-    # publish_speed_to_drone(speed)
-    time.sleep(4)
+    publish_speed_to_drone(speed)
+    time.sleep(2)
     data =  np.array(genfromtxt('goal_pos.csv', delimiter=','))
-    pose_drone_accurate[0] = sum(abs(data[-20:,0]))/20
-    pose_drone_accurate[1] = sum(abs(data[-20:,1]))/20
-    pose_drone_accurate[2] = sum(abs(data[-20:,2]))/20
+    pose_marker_accurate[0] = sum(abs(data[-5:,0]))/5
+    pose_marker_accurate[1] = sum(abs(data[-5:,1]))/5
+    pose_marker_accurate[2] = sum(abs(data[-5:,2]))/5
+    
  
+def reach_target_height(msg):
+    global first_run_target_height
+    global initial_odom
+ 
+    if first_run_target_height == True:
+        initial_odom = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
+        first_run_target_height = False
+
+    pid_reach_target_height = PID(0.4, 0.1, 0.0, setpoint=0)
+    speed.linear.z = pid_reach_target_height(-((msg.pose.pose.position.x-initial_odom[0])- 1.5))
+    publish_speed_to_drone(speed)
+
 
 
 def main():
     # global state_of_operation
     global timer_marker
+    global timer_ground_vehicle_stops
     time.sleep(0.5)
     pub_takeoff.publish(Empty_)
+
     time.sleep(2.5)
+
+    rospy.Subscriber("/bebop/odom", Odometry, reach_target_height, queue_size=1)     # main function (state machine)
 
     rospy.Subscriber("/bebop/odom", Odometry, main_algorithm, queue_size=1)     # main function (state machine)
     rospy.Subscriber("/ar_pose_marker", AlvarMarkers, get_maker_pose, queue_size=1)  # get marker position
@@ -534,9 +594,6 @@ def main():
     
     timer_marker = threading.Timer(3,look_for_marker) # wait 5 seconds before starting to look for the marker 
     timer_marker.start() #velocities
-
-    # timer_ground_vehicle_stops = threading.Timer(3,detect_ground_vehicle_stop) # wait 5 seconds before starting to look for the marker 
-    # timer_marker.start() #velocities
 
 
     print("hallo:")
