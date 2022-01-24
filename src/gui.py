@@ -76,21 +76,26 @@ def plotter():
 
             if var_plot.get() == 2:         
                 data = genfromtxt('velocity_drone.csv', delimiter=',') 
-                data_real = genfromtxt('velocity_drone_real.csv', delimiter=',')    
+                data_real = genfromtxt('velocity_drone_real.csv', delimiter=',') 
+                data_before = genfromtxt('before_seconde_PID.csv', delimiter=',')
                 height_val_vec = height_val*np.ones(len(data)) 
                 ax2[0].clear()
                 ax2[0].plot(data[2:,0]) ## this send 
                 ax2[0].plot(data_real[2:,0], 'r') ## this is the actual velocity
                 ax2[0].plot(height_val_vec/100, 'r--', linewidth=1)
+                ax2[0].plot(data_before[2:,0], 'g--', linewidth=1)
                 ax2[0].set_title("velocity in x")
 
                 ax2[1].clear()
                 ax2[1].plot(data[2:,1])
                 ax2[1].plot(data_real[2:,1], "r") ## this is the actual velocity
+                ax2[1].plot(data_before[2:,0], 'g--', linewidth=1)
+
                 ax2[1].set_title("velocity in y")
 
                 ax2[2].clear()
                 ax2[2].plot(data[2:,2])
+                ax2[2].plot(data_before[2:,0], 'g--', linewidth=1)
                 # ax2[2].plot(data_real[2:,2], "r") ## this is the actual velocity
                 ax2[2].set_title("rotational velocity")
 
@@ -174,7 +179,17 @@ def clear_plots():
         my_empty_csv_w.writerow([0.0 , 0.0 ,0.0])
         pass          
     # ax1.clear()
-    
+    try:
+        os.remove("before_seconde_PID.csv")
+    except:
+        pass
+
+    with open("before_seconde_PID.csv", "w",  newline='') as my_empty_csv:
+        my_empty_csv_w = csv.writer(my_empty_csv)
+        my_empty_csv_w.writerow([0.0 , 0.0 ,0.0])
+        my_empty_csv_w.writerow([0.0 , 0.0 ,0.0])
+        pass  
+
 
 def sel():
     print("print"+str(var_plot.get()))

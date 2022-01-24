@@ -76,3 +76,15 @@
 ### camera calibration 
 
 rosrun camera_calibration cameracalibrator.py --size 8x6 --square 0.024 image:=/bebop/raw_image camera:=/bebop
+
+
+### email
+
+houman.masnavi@ut.ee
+
+
+
+##### Set parameter
+
+target height with existing controller  1.7 !!!
+camera angel 25 degree is very nice

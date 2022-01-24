@@ -401,13 +401,13 @@ def main_algorithm(msg):
         pid_z = PID(0.5, 0.01, 0.05, setpoint=0)
         pid_rot = PID(0.4, 0.02, 0.00, setpoint=0)
 
-        speed.linear.x = pid_x(-(goal_pos.x - 2))
+        # speed.linear.x = pid_x(-(goal_pos.x - 2))
         # speed.linear.y = pid_y((goal_pos.y))
 
-        pid_x_2 = PID(1.5, 0.15, 0.0, setpoint=0)           ### second PID controller
-        pid_y_2 = PID(0.5, 0.05, 0.01, setpoint=0)          ### second PID controller
-        speed.linear.x = pid_x_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
-        speed.linear.y = pid_y_2((speed.linear.y - current_velocities[1]))
+        # pid_x_2 = PID(1.5, 0.15, 0.0, setpoint=0)           ### second PID controller
+        # pid_y_2 = PID(0.5, 0.05, 0.01, setpoint=0)          ### second PID controller
+        # speed.linear.x = pid_x_2(-(speed.linear.x - current_velocities[0]))  ### my second PID controller
+        # speed.linear.y = pid_y_2((speed.linear.y - current_velocities[1]))
         speed.linear.z = 0
 
         publish_speed_to_drone(speed)
@@ -590,7 +590,7 @@ def main():
     # rospy.Subscriber("/bebop/odom", Odometry, callback, queue_size=1)         # is used for debugging and controll the drone without the marker
     # rospy.Subscriber("/custom_command", Float32, custom_command, queue_size=1)  # resice and handels commands from the UI
     # rospy.Subscriber("/bebop/odom", AlvarMarkers, em, queue_size=1)  # get marker positions
-    # rospy.Subscriber("*/drone_1", Pose, get_pose_opto_track_drone, queue_size=1)
+
     
     timer_marker = threading.Timer(3,look_for_marker) # wait 5 seconds before starting to look for the marker 
     timer_marker.start() #velocities
