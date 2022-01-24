@@ -70,3 +70,9 @@
 
 
 ### open transformation tree
+
+
+
+### camera calibration 
+
+rosrun camera_calibration cameracalibrator.py --size 8x6 --square 0.024 image:=/bebop/raw_image camera:=/bebop

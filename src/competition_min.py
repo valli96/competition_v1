@@ -1,7 +1,6 @@
 #!/usr/bin/env python2.7
 
 ## ros import
-from tkinter.tix import Tree
 import rospy
 from geometry_msgs.msg import Pose, Twist, Point
 from nav_msgs.msg import Odometry
@@ -10,7 +9,12 @@ from visualization_msgs.msg import Marker
 from tf import TransformListener, Transformer
 from ar_track_alvar_msgs.msg  import AlvarMarkers
 from bebop_msgs.msg import Ardrone3PilotingStateSpeedChanged
+from bebop_msgs.msg import Ardrone3PilotingStateAltitudeChanged
 
+
+
+# /bebop/states/ardrone3/PilotingState/AltitudeChanged
+# /bebop/states/ardrone3/PitingState/AltitudeChanged
 
 ## general imports
 from tf.transformations import decompose_matrix, euler_from_quaternion
@@ -24,6 +28,15 @@ import numpy as np
 from simple_pid import PID
 
 ### global variables
+
+
+## positions before rotation
+#
+#
+
+## positions after rotaions 
+#
+#
 
 state_of_operation = 0 # 0 starting Drone 
                        # 1 looking for the marker 
@@ -53,7 +66,7 @@ pose_marker_accurate = [0,0,0]
 current_velocities = [0,0,0]
 initial_odom = [0,0,0]
 actual_drone_pose = [0,0,0]
-target_height = 1.1
+target_height = 1.5
 speed_limit = 0.5
 
 
@@ -61,14 +74,13 @@ rospy.init_node("controll_drone")
 
 pub_takeoff = rospy.Publisher("bebop/takeoff", Empty, queue_size=1)
 pub_land = rospy.Publisher("/bebop/land", Empty, queue_size=1)
-
 camera_controll = rospy.Publisher("/bebop/camera_control", Twist, queue_size=1)
 pub_move = rospy.Publisher("bebop/cmd_vel", Twist, queue_size=1)
 Empty_ = Empty()
 
 pid_x_fast = PID(0.7,0.15,0, setpoint=0, sample_time=0.01)
 pid_y_fast = PID(0.3,0,0, setpoint=0, sample_time=0.01)
-pid_z_fast = PID(0.4,0.15,0, setpoint=0, sample_time=0.01)
+pid_z_fast = PID(0.3,0.2,0, setpoint=0, sample_time=0.01)
 pid_rot_fast = PID(0.5,0.15,0, setpoint=0, sample_time=0.01)
 
 pid_x_slow = PID(1,0,0, setpoint=0, sample_time=0.01) 
@@ -90,16 +102,16 @@ def publish_speed_to_drone(speed):
         speed.linear.z = 0
         speed.angular.z = 0
 
-    if abs(speed.linear.x) > speed_limit:
-        speed.linear.x = 0
-    if abs(speed.linear.y)> speed_limit:
-        speed.linear.y = 0
-    if abs(speed.linear.z) > speed_limit:
-        speed.linear.y = 0
-    if abs(speed.angular.z) > speed_limit:
-        speed.angular.z = 0
+    # if abs(speed.linear.x) > speed_limit:
+    #     speed.linear.x = 0
+    # if abs(speed.linear.y)> speed_limit:
+    #     speed.linear.y = 0
+    # # if abs(speed.linear.z) > speed_limit:
+    # #     speed.linear.y = 0
+    # if abs(speed.angular.z) > speed_limit:
+    #     speed.angular.z = 0
     if state_of_operation != 12:
-        # pub_move.publish(speed)
+        pub_move.publish(speed)
         pass
 
 
@@ -179,31 +191,57 @@ def detect_ground_vehicle_stop():
             pose_marker_accurate[2] = average_z
 
 
-def move_target_height(msg):
-    global target_height_reached
-    global first_run_target_height
-    global initial_odom
-    global target_height
+# def move_target_height(msg):
+#     global target_height_reached
+#     global first_run_target_height
+#     global initial_odom
+#     global target_height
  
-    if first_run_target_height == 4:
-        initial_odom = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
-        # first_run_target_height = first_run_target_height + 1
-    first_run_target_height = first_run_target_height + 1
+#     if first_run_target_height == 4:
+#         initial_odom = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
+#         # first_run_target_height = first_run_target_height + 1
+#     first_run_target_height = first_run_target_height + 1
 
+#     if target_height_reached == False:
+#         speed.linear.z = pid_z_fast(((msg.pose.pose.position.z-initial_odom[2]) - target_height))
+#         speed.linear.x = 0
+#         speed.linear.y = 0
+#         speed.angular.z = 0
+
+#         if abs((msg.pose.pose.position.z-initial_odom[2]) - target_height) < 0.2:
+#             target_height_reached = True
+#         print("bothe:  " + str((msg.pose.pose.position.z-initial_odom[2])))
+#         print("inside: "+ str(((msg.pose.pose.position.z-initial_odom[2]) - target_height)))
+#         print("speed:  " + str((speed.linear.z)))
+
+
+        publish_speed_to_drone(speed)
+
+
+def move_target_height_2(msg):
+    global target_height_reached
+    global target_height
+    global state_of_operation
+    # print("______ Paul ich bin hier ________________")
+ 
     if target_height_reached == False:
-        speed.linear.z = pid_z_fast(((msg.pose.pose.position.z-initial_odom[2]) - target_height))
+        speed.linear.z = pid_z_fast(((msg.altitude) - target_height))
         speed.linear.x = 0
         speed.linear.y = 0
         speed.angular.z = 0
 
-        if abs((msg.pose.pose.position.z-initial_odom[2]) - target_height) < 0.2:
+        if abs((msg.altitude) - target_height) < 0.3:
             target_height_reached = True
-        print("bothe:  " + str((msg.pose.pose.position.z-initial_odom[2])))
-        print("inside: "+ str(((msg.pose.pose.position.z-initial_odom[2]) - target_height)))
+            state_of_operation = 1
+            speed.linear.z = 0
+            print("_______________________________________________________________________________----")
+
+        print("both:  " + str(((msg.altitude))))
+        print("inside: "+ str(-((msg.altitude) - target_height)))
         print("speed:  " + str((speed.linear.z)))
 
-
         publish_speed_to_drone(speed)
+
 
 #######################################################################################
 #######################################################################################
@@ -232,6 +270,7 @@ def main_algorithm(msg):
         
 ######################### State 1 ###############################
     if state_of_operation == 1 and target_height_reached == True:
+        print("ich bin im state 1:   ")
        
         if last_side_marker == "right":
             speed.angular.z = +0.2
@@ -239,6 +278,7 @@ def main_algorithm(msg):
         elif last_side_marker == "left":
             speed.angular.z = -0.2
 
+        speed.linear.z = 0
         publish_speed_to_drone(speed)
 ######################### State 1 ###############################
 
@@ -293,14 +333,22 @@ def main():
     print("Hallo")
     # Empty_ = Empty()
     time.sleep(0.5)
-    # pub_takeoff.publish(Empty_)
+    pub_takeoff.publish(Empty_)
     time.sleep(2.5)
     
-    # rospy.Subscriber("/bebop/odom", Odometry, main_algorithm, queue_size=1)     # main function (state machine)
+    rospy.Subscriber("/bebop/odom", Odometry, main_algorithm, queue_size=1)     # main function (state machine)
+    rospy.Subscriber("/bebop/states/ardrone3/PilotingState/AltitudeChanged", Ardrone3PilotingStateAltitudeChanged, move_target_height_2, queue_size=1)
+
+
+
     # rospy.Subscriber("/bebop/odom", Odometry, move_target_height, queue_size=1)     # main function (state machine)
-    rospy.Subscriber("/ar_pose_marker", AlvarMarkers, get_maker_pose, queue_size=1)  # get marker position
+    # rospy.Subscriber("/ar_pose_marker", AlvarMarkers, get_maker_pose, queue_size=1)  # get marker position
+    # rospy.Subscriber("/ar_pose_marker", AlvarMarkers, get_maker_pose, queue_size=1)  # get marker position
+
 
     # rospy.Subscriber("/bebop/states/ardrone3/PilotingState/SpeedChanged", Ardrone3PilotingStateSpeedChanged, get_current_velocities, queue_size=1)  # needed for the seconde PID
+    # rospy.Subscriber("/bebop/states/ardrone3/PilotingState/SpeedChanged", Ardrone3PilotingStateSpeedChanged, get_current_velocities, queue_size=1)  # needed for the seconde PID
+
 
     timer_marker = threading.Timer(3,look_for_marker)  
     timer_marker.start() 
@@ -310,8 +358,8 @@ def main():
 def myhook():
     global state_of_operation 
     state_of_operation = 12
-    time.sleep(0.5)
-    # pub_land.publish(Empty_)
+    # time.sleep(0.5)
+    pub_land.publish(Empty_)
     time.sleep(0.5)
     print("shutdown time!")
     speed.linear.x = 0
